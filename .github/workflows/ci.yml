@@ -71,44 +71,59 @@ jobs:
             SDKMANAGER="$(command -v sdkmanager)"
           fi
 
+          set +o pipefail
           yes | "${SDKMANAGER}" --licenses >/dev/null
+          set -o pipefail
           "${SDKMANAGER}" "platforms;android-${ANDROID_API_LEVEL}" "build-tools;${ANDROID_BUILD_TOOLS}"
 
       - name: Quality gates
         run: |
           ./gradlew \
-            assembleDebug \
+            ai:assembleDebug \
+            app:assembleDebug \
+            data:assembleDebug \
+            domain:assembleDebug \
             ktlintCheck \
             detekt \
-            lintDebug \
-            testDebugUnitTest \
+            ai:lintDebug \
+            app:lintDebug \
+            data:lintDebug \
+            domain:lintDebug \
+            ai:testDebugUnitTest \
+            app:testDebugUnitTest \
+            data:testDebugUnitTest \
+            domain:testDebugUnitTest \
             koverXmlReport \
             koverVerify \
             --stacktrace
 
-      - name: Merge detekt SARIF
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p build/reports/detekt
-          mapfile -t sarif_files < <(find . -path '*/build/reports/detekt/*.sarif' -type f | sort)
-
-          if [ "${#sarif_files[@]}" -eq 0 ]; then
-            exit 0
-          fi
-
-          jq -s '{
-            version: (.[0].version // "2.1.0"),
-            "$schema": (.[0]."$schema"),
-            runs: (map(.runs // []) | add)
-          }' "${sarif_files[@]}" > build/reports/detekt/detekt-merged.sarif
-
-      - name: Upload detekt SARIF
-        if: always() && hashFiles('build/reports/detekt/detekt-merged.sarif') != ''
+      - name: Upload detekt SARIF for ai
+        if: always() && hashFiles('ai/build/reports/detekt/detekt.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: build/reports/detekt/detekt-merged.sarif
-          category: detekt
+          sarif_file: ai/build/reports/detekt/detekt.sarif
+          category: detekt-ai
+
+      - name: Upload detekt SARIF for app
+        if: always() && hashFiles('app/build/reports/detekt/detekt.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: app/build/reports/detekt/detekt.sarif
+          category: detekt-app
+
+      - name: Upload detekt SARIF for data
+        if: always() && hashFiles('data/build/reports/detekt/detekt.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: data/build/reports/detekt/detekt.sarif
+          category: detekt-data
+
+      - name: Upload detekt SARIF for domain
+        if: always() && hashFiles('domain/build/reports/detekt/detekt.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: domain/build/reports/detekt/detekt.sarif
+          category: detekt-domain
 
       - name: Upload quality artifacts
         if: always()
@@ -193,7 +208,9 @@ jobs:
             SDKMANAGER="$(command -v sdkmanager)"
           fi
 
+          set +o pipefail
           yes | "${SDKMANAGER}" --licenses >/dev/null
+          set -o pipefail
           "${SDKMANAGER}" "platforms;android-${ANDROID_API_LEVEL}" "build-tools;${ANDROID_BUILD_TOOLS}"
 
       - name: Initialize CodeQL
@@ -203,7 +220,13 @@ jobs:
           build-mode: manual
 
       - name: Build for CodeQL
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          ./gradlew \
+            ai:assembleDebug \
+            app:assembleDebug \
+            data:assembleDebug \
+            domain:assembleDebug \
+            --stacktrace
 
       - name: Analyze
         uses: github/codeql-action/analyze@v4
@@ -211,7 +234,7 @@ jobs:
   release:
     name: Release
     needs: detect-gradle
-    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.detect-gradle.outputs.has_gradle == 'true'
+    if: needs.detect-gradle.outputs.has_gradle == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -237,14 +260,22 @@ jobs:
             SDKMANAGER="$(command -v sdkmanager)"
           fi
 
+          set +o pipefail
           yes | "${SDKMANAGER}" --licenses >/dev/null
+          set -o pipefail
           "${SDKMANAGER}" "platforms;android-${ANDROID_API_LEVEL}" "build-tools;${ANDROID_BUILD_TOOLS}"
 
       - name: Release checks
         run: |
           ./gradlew \
-            assembleRelease \
-            lintRelease \
+            ai:assembleRelease \
+            app:assembleRelease \
+            data:assembleRelease \
+            domain:assembleRelease \
+            ai:lintRelease \
+            app:lintRelease \
+            data:lintRelease \
+            domain:lintRelease \
             --stacktrace
 
       - name: Upload release artifacts
@@ -260,7 +291,7 @@ jobs:
   android-tests:
     name: Android Tests
     needs: detect-gradle
-    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.detect-gradle.outputs.has_gradle == 'true'
+    if: needs.detect-gradle.outputs.has_gradle == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -295,7 +326,9 @@ jobs:
             SDKMANAGER="$(command -v sdkmanager)"
           fi
 
+          set +o pipefail
           yes | "${SDKMANAGER}" --licenses >/dev/null
+          set -o pipefail
           "${SDKMANAGER}" \
             "platforms;android-${ANDROID_API_LEVEL}" \
             "build-tools;${ANDROID_BUILD_TOOLS}" \
