@@ -2,7 +2,6 @@ package com.itlab.domain.aiusecase
 
 import com.itlab.domain.ai.NoteAiService
 import com.itlab.domain.model.ContentItem
-import com.itlab.domain.model.ImageSource
 import com.itlab.domain.model.Note
 import com.itlab.domain.repository.NotesRepository
 
@@ -18,11 +17,8 @@ class SuggestTagsUseCase(
     private fun extractImages(note: Note): List<String> =
         note.contentItems
             .filterIsInstance<ContentItem.Image>()
-            .map { image ->
-                when (val source = image.source) {
-                    is ImageSource.Local -> source.path
-                    is ImageSource.Remote -> source.url
-                }
+            .mapNotNull { image ->
+                image.source.localPath ?: image.source.remoteUrl
             }
 
     suspend operator fun invoke(noteId: String): Set<String> {

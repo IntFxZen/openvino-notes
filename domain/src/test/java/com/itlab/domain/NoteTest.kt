@@ -1,7 +1,7 @@
 package com.itlab.domain
 
 import com.itlab.domain.model.ContentItem
-import com.itlab.domain.model.ImageSource
+import com.itlab.domain.model.DataSource
 import com.itlab.domain.model.Note
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -31,9 +31,16 @@ class NoteTest {
         val items =
             listOf(
                 ContentItem.Text("text"),
-                ContentItem.Image(ImageSource.Local("path")),
+                ContentItem.Image(
+                    source = DataSource(localPath = "/cache/images/pic_001.jpg"),
+                    mimeType = "type",
+                ),
                 ContentItem.Link("url"),
-                ContentItem.File("uri", "type", "name"),
+                ContentItem.File(
+                    source = DataSource(remoteUrl = "https://url.com"),
+                    mimeType = "type",
+                    name = "name",
+                ),
             )
 
         assertTrue(items[0] is ContentItem.Text)

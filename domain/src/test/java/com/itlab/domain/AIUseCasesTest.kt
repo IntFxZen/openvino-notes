@@ -6,7 +6,7 @@ import com.itlab.domain.aiusecase.ApplyTagsUseCase
 import com.itlab.domain.aiusecase.SuggestSummaryUseCase
 import com.itlab.domain.aiusecase.SuggestTagsUseCase
 import com.itlab.domain.model.ContentItem
-import com.itlab.domain.model.ImageSource
+import com.itlab.domain.model.DataSource
 import com.itlab.domain.model.Note
 import com.itlab.domain.repository.NotesRepository
 import kotlinx.coroutines.flow.Flow
@@ -87,7 +87,10 @@ class AIUseCasesTest {
                     contentItems =
                         listOf(
                             ContentItem.Text("Hello"),
-                            ContentItem.Image(ImageSource.Local("path/to/img")),
+                            ContentItem.Image(
+                                source = DataSource(localPath = "path/to/img"),
+                                mimeType = "image/png",
+                            ),
                         ),
                 )
             repo.createNote(note)
@@ -128,8 +131,14 @@ class AIUseCasesTest {
                         listOf(
                             ContentItem.Text("First line"),
                             ContentItem.Text("Second line"),
-                            ContentItem.Image(ImageSource.Local("/local/image.png")),
-                            ContentItem.Image(ImageSource.Remote("https://example.com/image.jpg")),
+                            ContentItem.Image(
+                                source = DataSource(localPath = "/local/image.png"),
+                                mimeType = "image/png",
+                            ),
+                            ContentItem.Image(
+                                source = DataSource(remoteUrl = "https://example.com/image.jpg"),
+                                mimeType = "image/jpg",
+                            ),
                             ContentItem.Link("https://kotlinlang.org"),
                         ),
                 )

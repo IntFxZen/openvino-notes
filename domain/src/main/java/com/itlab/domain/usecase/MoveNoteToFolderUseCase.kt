@@ -1,4 +1,5 @@
 package com.itlab.domain.usecase
+
 import com.itlab.domain.repository.NotesRepository
 import kotlinx.datetime.Clock
 
