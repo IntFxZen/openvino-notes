@@ -24,7 +24,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
     compileOptions {
@@ -33,6 +36,26 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    testOptions {
+        managedDevices {
+            localDevices {
+                create("pixel7api34X86") {
+                    device = "Pixel 7"
+                    apiLevel = 34
+                    systemImageSource = "aosp-atd"
+                    require64Bit = true
+                    testedAbi = "x86_64"
+                }
+                create("pixel7api34Arm64") {
+                    device = "Pixel 7"
+                    apiLevel = 34
+                    systemImageSource = "aosp-atd"
+                    require64Bit = true
+                    testedAbi = "arm64-v8a"
+                }
+            }
+        }
     }
 }
 
@@ -54,8 +77,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.materialicons.extended)
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -63,4 +84,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.material.icons.extended)
 }
