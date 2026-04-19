@@ -5,6 +5,7 @@ import com.itlab.domain.usecase.CreateNoteUseCase
 import com.itlab.domain.usecase.DeleteFolderUseCase
 import com.itlab.domain.usecase.DeleteNoteUseCase
 import com.itlab.domain.usecase.GetFolderUseCase
+import com.itlab.domain.usecase.MoveNoteToFolderUseCase
 import com.itlab.domain.usecase.ObserveFoldersUseCase
 import com.itlab.domain.usecase.ObserveNotesByFolderUseCase
 import com.itlab.domain.usecase.UpdateFolderUseCase
@@ -20,4 +21,5 @@ data class NotesUseCases(
     val observeFoldersUseCase: ObserveFoldersUseCase,
     val updateFolderUseCase: UpdateFolderUseCase,
     val getFolderUseCase: GetFolderUseCase,
+    val moveNoteToFolderUseCase: MoveNoteToFolderUseCase,
 )

@@ -38,11 +38,20 @@ fun notesApp() {
             notesListScreen(
                 directoryName = directory.name,
                 notes = state.notes,
+                directories = state.directories.filter { it.id != "all" },
                 actions =
                     NotesListActions(
                         onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectories) },
                         onAddNoteClick = { viewModel.onEvent(NotesUiEvent.CreateNote) },
                         onNoteDelete = { note -> viewModel.onEvent(NotesUiEvent.DeleteNote(note.id)) },
+                        onNoteMove = { noteId, directoryId ->
+                            viewModel.onEvent(
+                                NotesUiEvent.MoveNoteToDirectory(
+                                    noteId = noteId,
+                                    targetDirectoryId = directoryId,
+                                ),
+                            )
+                        },
                         onNoteClick = { note: NoteItemUi ->
                             viewModel.onEvent(NotesUiEvent.OpenNote(note))
                         },

@@ -57,6 +57,11 @@ sealed interface NotesUiEvent {
         val directoryId: String,
         val newName: String,
     ) : NotesUiEvent
+
+    data class MoveNoteToDirectory(
+        val noteId: String,
+        val targetDirectoryId: String,
+    ) : NotesUiEvent
 }
 
 interface NotesViewModelContract {
