@@ -109,10 +109,17 @@ class NotesViewModel(
                 notes = emptyList(),
             )
         notesJob?.cancel()
-        val folderId = directory.id.asDomainFolderId()
+        val isAll = directory.id == "all"
         notesJob =
             viewModelScope.launch {
-                useCases.observeNotesByFolderUseCase(folderId).collect { notes ->
+                val flow =
+                    if (isAll) {
+                        useCases.observeNotesUseCase()
+                    } else {
+                        useCases.observeNotesByFolderUseCase(directory.id)
+                    }
+
+                flow.collect { notes ->
                     uiState =
                         uiState.copy(
                             notes = notes.map { it.toUi() },
@@ -173,7 +180,7 @@ class NotesViewModel(
         viewModelScope.launch {
             val existing =
                 useCases
-                    .observeNotesByFolderUseCase(null)
+                    .observeNotesUseCase()
                     .firstOrNull()
                     .orEmpty()
                     .any { it.id == note.id }
