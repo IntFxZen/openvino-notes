@@ -1,14 +1,14 @@
 package com.itlab.domain
 
 import com.itlab.domain.ai.NoteAiService
-import com.itlab.domain.aiusecase.ApplySummaryUseCase
-import com.itlab.domain.aiusecase.ApplyTagsUseCase
-import com.itlab.domain.aiusecase.SuggestSummaryUseCase
-import com.itlab.domain.aiusecase.SuggestTagsUseCase
 import com.itlab.domain.model.ContentItem
 import com.itlab.domain.model.DataSource
 import com.itlab.domain.model.Note
 import com.itlab.domain.repository.NotesRepository
+import com.itlab.domain.usecase.aiusecase.SuggestSummaryUseCase
+import com.itlab.domain.usecase.aiusecase.SuggestTagsUseCase
+import com.itlab.domain.usecase.noteusecase.ApplySummaryUseCase
+import com.itlab.domain.usecase.noteusecase.ApplyTagsUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
