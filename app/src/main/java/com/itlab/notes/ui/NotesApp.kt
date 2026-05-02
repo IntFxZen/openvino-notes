@@ -1,16 +1,14 @@
 package com.itlab.notes.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.itlab.notes.ui.editor.editorScreen
-import com.itlab.notes.ui.notes.DirectoryItemUi
-import com.itlab.notes.ui.notes.NoteItemUi
 import com.itlab.notes.ui.notes.directoriesScreen
 import com.itlab.notes.ui.notes.notesListScreen
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun notesApp() {
-    val viewModel = remember { NotesViewModel() }
+    val viewModel: NotesViewModel = koinViewModel()
     val state = viewModel.uiState
 
     when (val screen = state.screen) {
@@ -24,13 +22,12 @@ fun notesApp() {
         }
 
         is NotesUiScreen.DirectoryNotes -> {
-            val directory: DirectoryItemUi = screen.directory
             notesListScreen(
-                directoryName = directory.name,
+                directoryName = screen.directory.name,
                 notes = state.notes,
                 onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectories) },
                 onAddNoteClick = { viewModel.onEvent(NotesUiEvent.CreateNote) },
-                onNoteClick = { note: NoteItemUi ->
+                onNoteClick = { note ->
                     viewModel.onEvent(NotesUiEvent.OpenNote(note))
                 },
             )
@@ -41,7 +38,9 @@ fun notesApp() {
                 directoryName = screen.directory.name,
                 note = screen.note,
                 onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectoryNotes) },
-                onSave = { updated -> viewModel.onEvent(NotesUiEvent.SaveNote(updated)) },
+                onSave = { updated ->
+                    viewModel.onEvent(NotesUiEvent.SaveNote(updated))
+                },
             )
         }
     }

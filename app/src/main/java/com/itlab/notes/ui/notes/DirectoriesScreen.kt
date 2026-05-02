@@ -141,8 +141,8 @@ private fun directoryRow(
 
 private fun previewDirectoriesFallback(): List<DirectoryItemUi> =
     listOf(
-        DirectoryItemUi(name = "All Notes", noteCount = 0),
-        DirectoryItemUi(name = "My Study", noteCount = 0),
-        DirectoryItemUi(name = "How to Cook", noteCount = 0),
-        DirectoryItemUi(name = "My poems", noteCount = 0),
+        DirectoryItemUi(name = "All Notes", noteCount = 0, id = "1"),
+        DirectoryItemUi(name = "My Study", noteCount = 0, id = "0"),
+        DirectoryItemUi(name = "How to Cook", noteCount = 0, id = "2"),
+        DirectoryItemUi(name = "My poems", noteCount = 0, id = "3"),
     )
