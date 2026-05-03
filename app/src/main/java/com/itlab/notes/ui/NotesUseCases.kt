@@ -2,7 +2,9 @@ package com.itlab.notes.ui
 
 import com.itlab.domain.usecase.folderusecase.CreateFolderUseCase
 import com.itlab.domain.usecase.folderusecase.DeleteFolderUseCase
+import com.itlab.domain.usecase.folderusecase.GetFolderUseCase
 import com.itlab.domain.usecase.folderusecase.ObserveFoldersUseCase
+import com.itlab.domain.usecase.folderusecase.UpdateFolderUseCase
 import com.itlab.domain.usecase.noteusecase.CreateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.DeleteNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesByFolderUseCase

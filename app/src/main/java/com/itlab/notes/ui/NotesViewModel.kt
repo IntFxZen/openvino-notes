@@ -118,7 +118,7 @@ class NotesViewModel(
             }
     }
 
-    private fun backToDirectories() {
+    private val backToDirectories: () -> Unit = {
         uiState =
             uiState.copy(
                 screen = NotesUiScreen.Directories,
