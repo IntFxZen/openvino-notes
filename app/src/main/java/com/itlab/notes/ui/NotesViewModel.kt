@@ -13,7 +13,6 @@ import com.itlab.notes.ui.notes.NoteItemUi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 class NotesViewModel(
     private val useCases: NotesUseCases,
