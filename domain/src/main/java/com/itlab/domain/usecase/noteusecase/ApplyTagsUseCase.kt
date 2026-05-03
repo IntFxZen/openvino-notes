@@ -1,13 +1,14 @@
-package com.itlab.domain.aiusecase
+package com.itlab.domain.usecase.noteusecase
 
 import com.itlab.domain.repository.NotesRepository
+import kotlinx.datetime.Clock
 
-class ApplySummaryUseCase(
+class ApplyTagsUseCase(
     private val repo: NotesRepository,
 ) {
     suspend operator fun invoke(
         noteId: String,
-        newSummary: String,
+        newTags: Set<String>,
     ) {
         val note =
             repo.getNoteById(noteId)
@@ -15,9 +16,9 @@ class ApplySummaryUseCase(
 
         val updated =
             note.copy(
-                summary = newSummary,
+                tags = newTags,
                 updatedAt =
-                    kotlinx.datetime.Clock.System
+                    Clock.System
                         .now(),
             )
 

@@ -2,8 +2,6 @@ package com.itlab.notes.ui
 
 import androidx.compose.runtime.Composable
 import com.itlab.notes.ui.editor.editorScreen
-import com.itlab.notes.ui.notes.DirectoryItemUi
-import com.itlab.notes.ui.notes.NoteItemUi
 import com.itlab.notes.ui.notes.NotesListActions
 import com.itlab.notes.ui.notes.directoriesScreen
 import com.itlab.notes.ui.notes.notesListScreen
@@ -34,9 +32,8 @@ fun notesApp() {
         }
 
         is NotesUiScreen.DirectoryNotes -> {
-            val directory: DirectoryItemUi = screen.directory
             notesListScreen(
-                directoryName = directory.name,
+                directoryName = screen.directory.name,
                 notes = state.notes,
                 directories = state.directories.filter { it.id != "all" },
                 actions =
@@ -52,7 +49,7 @@ fun notesApp() {
                                 ),
                             )
                         },
-                        onNoteClick = { note: NoteItemUi ->
+                        onNoteClick = { note ->
                             viewModel.onEvent(NotesUiEvent.OpenNote(note))
                         },
                     ),
@@ -64,7 +61,9 @@ fun notesApp() {
                 directoryName = screen.directory.name,
                 note = screen.note,
                 onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectoryNotes) },
-                onSave = { updated -> viewModel.onEvent(NotesUiEvent.SaveNote(updated)) },
+                onSave = { updated ->
+                    viewModel.onEvent(NotesUiEvent.SaveNote(updated))
+                },
             )
         }
     }
