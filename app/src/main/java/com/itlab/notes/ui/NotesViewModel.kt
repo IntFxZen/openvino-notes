@@ -24,18 +24,21 @@ class NotesViewModel(
     )
         private set
     private var notesJob: Job? = null
+    private var latestFolders: List<NoteFolder> = emptyList()
+    private var latestNotes: List<Note> = emptyList()
 
     init {
         viewModelScope.launch {
             useCases.observeFoldersUseCase().collect { folders ->
-                val existingCounts = uiState.directories.associate { it.id to it.noteCount }
-                uiState =
-                    uiState.copy(
-                        directories =
-                            folders.map { folder ->
-                                folder.toUi(noteCount = existingCounts[folder.id] ?: 0)
-                            },
-                    )
+                latestFolders = folders
+                recomputeDirectories()
+            }
+        }
+
+        viewModelScope.launch {
+            useCases.observeNotesByFolderUseCase(null).collect { notes ->
+                latestNotes = notes
+                recomputeDirectories()
             }
         }
     }
@@ -132,8 +135,7 @@ class NotesViewModel(
             }
     }
 
-    private fun backToDirectories() {
-        notesJob?.cancel()
+    private val backToDirectories: () -> Unit = {
         uiState =
             uiState.copy(
                 screen = NotesUiScreen.Directories,
@@ -155,12 +157,7 @@ class NotesViewModel(
         val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory
         if (dir != null) {
             val newNote =
-                NoteItemUi(
-                    id = UUID.randomUUID().toString(),
-                    title = "",
-                    content = "",
-                    folderId = dir.id.asDomainFolderId(),
-                )
+                Note(folderId = dir.id.asDomainFolderId()).toUi()
             uiState =
                 uiState.copy(
                     screen = NotesUiScreen.NoteEditor(directory = dir, note = newNote),
@@ -178,20 +175,43 @@ class NotesViewModel(
     private fun saveNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         viewModelScope.launch {
-            val existing =
-                useCases
-                    .observeNotesUseCase()
-                    .firstOrNull()
-                    .orEmpty()
-                    .any { it.id == note.id }
             val targetFolderId = note.folderId ?: editor.directory.id.asDomainFolderId()
-            val domainNote = note.toDomain(folderId = targetFolderId)
-            if (existing) {
-                useCases.updateNoteUseCase(domainNote)
+            val existing = latestNotes.firstOrNull { it.id == note.id }
+            if (existing != null) {
+                useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
             } else {
-                useCases.createNoteUseCase(domainNote)
+                useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
             }
             uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
+        }
+    }
+
+    private fun recomputeDirectories() {
+        if (latestFolders.isEmpty()) return
+
+        val countsByFolderId = latestNotes.groupingBy { it.folderId }.eachCount()
+        val allNotesCount = latestNotes.size
+
+        val directories =
+            latestFolders.map { folder ->
+                val count =
+                    if (folder.id == "all") {
+                        allNotesCount
+                    } else {
+                        countsByFolderId[folder.id] ?: 0
+                    }
+                folder.toUi(noteCount = count)
+            }
+
+        uiState = uiState.copy(directories = directories)
+
+        // If a directory screen is currently open, keep the directory object in sync with the new count.
+        val opened = uiState.screen as? NotesUiScreen.DirectoryNotes
+        if (opened != null) {
+            val updatedDir = directories.firstOrNull { it.id == opened.directory.id }
+            if (updatedDir != null && updatedDir.noteCount != opened.directory.noteCount) {
+                uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = updatedDir))
+            }
         }
     }
 
@@ -222,5 +242,22 @@ internal fun NoteItemUi.toDomain(folderId: String?): Note =
         folderId = folderId,
         contentItems = listOf(ContentItem.Text(content)),
     )
+
+internal fun Note.applyUiUpdate(
+    ui: NoteItemUi,
+    targetFolderId: String?,
+): Note {
+    val nonTextContent = contentItems.filterNot { it is ContentItem.Text }
+    val updatedText =
+        ui.content
+            .takeIf { it.isNotBlank() }
+            ?.let { ContentItem.Text(it) }
+
+    return copy(
+        title = ui.title,
+        folderId = targetFolderId,
+        contentItems = if (updatedText != null) nonTextContent + updatedText else nonTextContent,
+    )
+}
 
 internal fun String.asDomainFolderId(): String? = if (this == "all") null else this
