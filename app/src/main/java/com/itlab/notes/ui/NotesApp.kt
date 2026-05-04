@@ -22,6 +22,9 @@ fun notesApp() {
                 onDeleteDirectory = { directory ->
                     viewModel.onEvent(NotesUiEvent.DeleteDirectory(directory.id))
                 },
+                onRenameDirectory = { directory, newName ->
+                    viewModel.onEvent(NotesUiEvent.RenameDirectory(directory.id, newName))
+                },
                 onDirectoryClick = { directory ->
                     viewModel.onEvent(NotesUiEvent.OpenDirectory(directory))
                 },

@@ -56,32 +56,41 @@ class NotesViewModel(
                     }
                 }
             }
-
-            is NotesUiEvent.DeleteDirectory -> {
-                if (event.directoryId != "all") {
-                    viewModelScope.launch {
-                        val notesInDirectory =
-                            useCases
-                                .observeNotesByFolderUseCase(event.directoryId)
-                                .firstOrNull()
-                                .orEmpty()
-                        notesInDirectory.forEach { note ->
-                            useCases.deleteNoteUseCase(note.id)
-                        }
-                        useCases.deleteFolderUseCase(event.directoryId)
-                        if ((uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory?.id == event.directoryId) {
-                            backToDirectories()
-                        }
-                    }
-                }
-            }
-
+            is NotesUiEvent.RenameDirectory -> renameDirectory(event)
+            is NotesUiEvent.DeleteDirectory -> deleteDirectory(event.directoryId)
             NotesUiEvent.BackToDirectoryNotes -> backToDirectoryNotes()
             is NotesUiEvent.SaveNote -> saveNote(event.note)
             is NotesUiEvent.DeleteNote -> {
                 viewModelScope.launch {
                     useCases.deleteNoteUseCase(event.noteId)
                 }
+            }
+        }
+    }
+
+    private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
+        val normalized = event.newName.trim()
+        if (normalized.isBlank() || event.directoryId == "all") return
+        viewModelScope.launch {
+            val existingFolder = useCases.getFolderUseCase(event.directoryId) ?: return@launch
+            useCases.updateFolderUseCase(existingFolder.copy(name = normalized))
+        }
+    }
+
+    private fun deleteDirectory(directoryId: String) {
+        if (directoryId == "all") return
+        viewModelScope.launch {
+            val notesInDirectory =
+                useCases
+                    .observeNotesByFolderUseCase(directoryId)
+                    .firstOrNull()
+                    .orEmpty()
+            notesInDirectory.forEach { note ->
+                useCases.deleteNoteUseCase(note.id)
+            }
+            useCases.deleteFolderUseCase(directoryId)
+            if ((uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory?.id == directoryId) {
+                backToDirectories()
             }
         }
     }
@@ -109,7 +118,7 @@ class NotesViewModel(
             }
     }
 
-    private fun backToDirectories() {
+    private val backToDirectories: () -> Unit = {
         uiState =
             uiState.copy(
                 screen = NotesUiScreen.Directories,

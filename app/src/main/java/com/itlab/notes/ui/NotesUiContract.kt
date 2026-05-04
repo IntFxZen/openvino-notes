@@ -3,10 +3,6 @@ package com.itlab.notes.ui
 import com.itlab.notes.ui.notes.DirectoryItemUi
 import com.itlab.notes.ui.notes.NoteItemUi
 
-/**
- * UI contract for the Notes feature.
- * Keeps state & events in one place so screens stay "dumb" (render-only).
- */
 sealed interface NotesUiScreen {
     data object Directories : NotesUiScreen
 
@@ -55,6 +51,11 @@ sealed interface NotesUiEvent {
 
     data class DeleteNote(
         val noteId: String,
+    ) : NotesUiEvent
+
+    data class RenameDirectory(
+        val directoryId: String,
+        val newName: String,
     ) : NotesUiEvent
 }
 

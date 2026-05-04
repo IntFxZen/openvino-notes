@@ -43,6 +43,7 @@ fun directoriesScreen(
     directories: List<DirectoryItemUi> = previewDirectoriesFallback(),
     onCreateDirectory: (String) -> Unit,
     onDeleteDirectory: (DirectoryItemUi) -> Unit,
+    onRenameDirectory: (DirectoryItemUi, String) -> Unit,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -59,6 +60,7 @@ fun directoriesScreen(
         directoriesList(
             directories = directories,
             onDirectoryLongClick = onDeleteDirectory,
+            onDirectoryRename = onRenameDirectory,
             onDirectoryClick = onDirectoryClick,
             modifier = Modifier.padding(paddingValues),
         )
@@ -126,10 +128,12 @@ private fun directoriesTopBar(onAddDirectoryClick: () -> Unit) {
 private fun directoriesList(
     directories: List<DirectoryItemUi>,
     onDirectoryLongClick: (DirectoryItemUi) -> Unit,
+    onDirectoryRename: (DirectoryItemUi, String) -> Unit,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var directoryPendingDelete by remember { mutableStateOf<DirectoryItemUi?>(null) }
+    var directoryPendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
     LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
         items(directories) { dir ->
             directoryRow(
@@ -144,27 +148,87 @@ private fun directoriesList(
         }
     }
     directoryPendingDelete?.let { dir ->
-        AlertDialog(
-            onDismissRequest = { directoryPendingDelete = null },
-            title = { Text("Delete directory?") },
-            text = { Text("Directory \"${dir.name}\" will be removed.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDirectoryLongClick(dir)
-                        directoryPendingDelete = null
-                    },
-                ) {
-                    Text("Delete")
-                }
+        directoryActionsDialog(
+            directory = dir,
+            onDelete = {
+                onDirectoryLongClick(dir)
+                directoryPendingDelete = null
             },
-            dismissButton = {
-                TextButton(onClick = { directoryPendingDelete = null }) {
-                    Text("Cancel")
-                }
+            onRename = {
+                directoryPendingDelete = null
+                directoryPendingRename = dir
             },
+            onDismiss = { directoryPendingDelete = null },
         )
     }
+    directoryPendingRename?.let { dir ->
+        directoryRenameDialog(
+            directory = dir,
+            onSave = { newName ->
+                onDirectoryRename(dir, newName)
+                directoryPendingRename = null
+            },
+            onDismiss = { directoryPendingRename = null },
+        )
+    }
+}
+
+@Composable
+private fun directoryActionsDialog(
+    directory: DirectoryItemUi,
+    onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Directory actions") },
+        text = { Text("Choose action for \"${directory.name}\"") },
+        confirmButton = {
+            TextButton(onClick = onDelete) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onRename) {
+                Text("Rename")
+            }
+        },
+    )
+}
+
+@Composable
+private fun directoryRenameDialog(
+    directory: DirectoryItemUi,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var renameName by remember(directory.id) { mutableStateOf(directory.name) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename directory") },
+        text = {
+            OutlinedTextField(
+                value = renameName,
+                onValueChange = { renameName = it },
+                label = { Text("Directory name") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(renameName) },
+                enabled = renameName.trim().isNotEmpty(),
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
