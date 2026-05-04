@@ -2,6 +2,7 @@ package com.itlab.notes.ui
 
 import androidx.compose.runtime.Composable
 import com.itlab.notes.ui.editor.editorScreen
+import com.itlab.notes.ui.notes.NotesListActions
 import com.itlab.notes.ui.notes.directoriesScreen
 import com.itlab.notes.ui.notes.notesListScreen
 import org.koin.androidx.compose.koinViewModel
@@ -15,6 +16,12 @@ fun notesApp() {
         NotesUiScreen.Directories -> {
             directoriesScreen(
                 directories = state.directories,
+                onCreateDirectory = { name ->
+                    viewModel.onEvent(NotesUiEvent.CreateDirectory(name))
+                },
+                onDeleteDirectory = { directory ->
+                    viewModel.onEvent(NotesUiEvent.DeleteDirectory(directory.id))
+                },
                 onDirectoryClick = { directory ->
                     viewModel.onEvent(NotesUiEvent.OpenDirectory(directory))
                 },
@@ -25,11 +32,17 @@ fun notesApp() {
             notesListScreen(
                 directoryName = screen.directory.name,
                 notes = state.notes,
-                onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectories) },
-                onAddNoteClick = { viewModel.onEvent(NotesUiEvent.CreateNote) },
-                onNoteClick = { note ->
-                    viewModel.onEvent(NotesUiEvent.OpenNote(note))
-                },
+                actions =
+                    NotesListActions(
+                        onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectories) },
+                        onAddNoteClick = { viewModel.onEvent(NotesUiEvent.CreateNote) },
+                        onNoteDelete = { note ->
+                            viewModel.onEvent(NotesUiEvent.DeleteNote(note.id))
+                        },
+                        onNoteClick = { note ->
+                            viewModel.onEvent(NotesUiEvent.OpenNote(note))
+                        },
+                    ),
             )
         }
 

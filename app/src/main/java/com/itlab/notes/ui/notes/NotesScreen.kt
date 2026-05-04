@@ -1,19 +1,27 @@
 package com.itlab.notes.ui.notes
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -26,22 +34,32 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun notesListScreen(
     directoryName: String,
     notes: List<NoteItemUi>,
-    onBack: () -> Unit,
-    onAddNoteClick: () -> Unit,
-    onNoteClick: (NoteItemUi) -> Unit,
+    actions: NotesListActions,
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -50,20 +68,28 @@ fun notesListScreen(
         topBar = {
             notesTopBar(
                 directoryName = directoryName,
-                onBack = onBack,
+                onBack = actions.onBack,
             )
         },
         floatingActionButton = {
-            notesFab(onAddNoteClick = onAddNoteClick)
+            notesFab(onAddNoteClick = actions.onAddNoteClick)
         },
     ) { paddingValues ->
         notesListContent(
             notes = notes,
             paddingValues = paddingValues,
-            onNoteClick = onNoteClick,
+            onNoteDelete = actions.onNoteDelete,
+            onNoteClick = actions.onNoteClick,
         )
     }
 }
+
+data class NotesListActions(
+    val onBack: () -> Unit,
+    val onAddNoteClick: () -> Unit,
+    val onNoteDelete: (NoteItemUi) -> Unit,
+    val onNoteClick: (NoteItemUi) -> Unit,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +139,7 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
 private fun notesListContent(
     notes: List<NoteItemUi>,
     paddingValues: androidx.compose.foundation.layout.PaddingValues,
+    onNoteDelete: (NoteItemUi) -> Unit,
     onNoteClick: (NoteItemUi) -> Unit,
 ) {
     Column(
@@ -127,10 +154,102 @@ private fun notesListContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(top = 4.dp),
         ) {
-            items(notes) { note ->
-                noteCard(
-                    note = note,
-                    onClick = { onNoteClick(note) },
+            items(
+                items = notes,
+                key = { note -> note.id },
+            ) { note ->
+                var isDeleteDispatched by remember(note.id) { mutableStateOf(false) }
+                val dismissState =
+                    rememberSwipeToDismissBoxState(
+                        positionalThreshold = { totalDistance -> totalDistance * 0.22f },
+                    )
+                val swipeProgress by
+                    remember(dismissState) {
+                        derivedStateOf {
+                            dismissState.progress.coerceIn(0f, 1f)
+                        }
+                    }
+                val swipeOffsetPx by
+                    remember(dismissState) {
+                        derivedStateOf {
+                            kotlin.runCatching { abs(dismissState.requireOffset()) }.getOrDefault(0f)
+                        }
+                    }
+                LaunchedEffect(dismissState.targetValue, isDeleteDispatched) {
+                    if (!isDeleteDispatched && dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                        isDeleteDispatched = true
+                        onNoteDelete(note)
+                    }
+                }
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    backgroundContent = {
+                        swipeDeleteBackground(
+                            isActive = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart,
+                            swipeProgress = swipeProgress,
+                            swipeOffsetPx = swipeOffsetPx,
+                        )
+                    },
+                ) {
+                    noteCard(
+                        note = note,
+                        onClick = { onNoteClick(note) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun swipeDeleteBackground(
+    isActive: Boolean,
+    swipeProgress: Float,
+    swipeOffsetPx: Float,
+) {
+    val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val clampedProgress = swipeProgress.coerceIn(0f, 1f)
+    val activeScale by animateFloatAsState(
+        targetValue = if (isActive) 1f else (0.9f + clampedProgress * 0.1f),
+        label = "deleteIconScale",
+    )
+    val activeAlpha by animateFloatAsState(
+        targetValue = if (isActive) 1f else (0.62f + clampedProgress * 0.28f),
+        label = "deleteIconAlpha",
+    )
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().padding(vertical = 1.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        val maxWidth = maxWidth
+        val gapFromCard = 8.dp
+        val targetWidth =
+            with(density) { (swipeOffsetPx - gapFromCard.toPx()).coerceAtLeast(0f).toDp() }
+                .coerceAtMost(maxWidth)
+        val animatedWidth by animateDpAsState(targetValue = targetWidth, label = "deleteBackgroundWidth")
+        Surface(
+            color = colors.errorContainer.copy(alpha = 0.6f),
+            shape = RoundedCornerShape(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .width(animatedWidth),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = colors.onErrorContainer.copy(alpha = activeAlpha),
+                    modifier =
+                        Modifier.graphicsLayer(
+                            scaleX = activeScale,
+                            scaleY = activeScale,
+                        ),
                 )
             }
         }

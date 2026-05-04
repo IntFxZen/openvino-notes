@@ -110,7 +110,6 @@ class NotesViewModel(
     }
 
     private fun backToDirectories() {
-        notesJob?.cancel()
         uiState =
             uiState.copy(
                 screen = NotesUiScreen.Directories,
