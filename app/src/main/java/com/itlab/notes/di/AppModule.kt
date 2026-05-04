@@ -16,9 +16,12 @@ import com.itlab.notes.ui.NotesViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
+// import com.itlab.notes.ui.NotesUseCases
+// import com.itlab.notes.ui.NotesViewModel
+// import org.koin.androidx.viewmodel.dsl.viewModel
 val appModule =
     module {
         single<NotesRepository> { InMemoryNotesRepository() }
