@@ -2,7 +2,8 @@ package com.itlab.notes.ui.notes
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -37,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -59,6 +62,7 @@ import kotlin.math.abs
 fun notesListScreen(
     directoryName: String,
     notes: List<NoteItemUi>,
+    directories: List<DirectoryItemUi>,
     actions: NotesListActions,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -78,8 +82,13 @@ fun notesListScreen(
         notesListContent(
             notes = notes,
             paddingValues = paddingValues,
-            onNoteDelete = actions.onNoteDelete,
-            onNoteClick = actions.onNoteClick,
+            directories = directories,
+            actions =
+                NotesListContentActions(
+                    onNoteDelete = actions.onNoteDelete,
+                    onNoteMove = actions.onNoteMove,
+                    onNoteClick = actions.onNoteClick,
+                ),
         )
     }
 }
@@ -88,6 +97,13 @@ data class NotesListActions(
     val onBack: () -> Unit,
     val onAddNoteClick: () -> Unit,
     val onNoteDelete: (NoteItemUi) -> Unit,
+    val onNoteMove: (noteId: String, directoryId: String) -> Unit,
+    val onNoteClick: (NoteItemUi) -> Unit,
+)
+
+private data class NotesListContentActions(
+    val onNoteDelete: (NoteItemUi) -> Unit,
+    val onNoteMove: (noteId: String, directoryId: String) -> Unit,
     val onNoteClick: (NoteItemUi) -> Unit,
 )
 
@@ -139,9 +155,10 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
 private fun notesListContent(
     notes: List<NoteItemUi>,
     paddingValues: androidx.compose.foundation.layout.PaddingValues,
-    onNoteDelete: (NoteItemUi) -> Unit,
-    onNoteClick: (NoteItemUi) -> Unit,
+    directories: List<DirectoryItemUi>,
+    actions: NotesListContentActions,
 ) {
+    var pendingMoveNote by remember { mutableStateOf<NoteItemUi?>(null) }
     Column(
         modifier =
             Modifier
@@ -158,47 +175,74 @@ private fun notesListContent(
                 items = notes,
                 key = { note -> note.id },
             ) { note ->
-                var isDeleteDispatched by remember(note.id) { mutableStateOf(false) }
-                val dismissState =
-                    rememberSwipeToDismissBoxState(
-                        positionalThreshold = { totalDistance -> totalDistance * 0.22f },
-                    )
-                val swipeProgress by
-                    remember(dismissState) {
-                        derivedStateOf {
-                            dismissState.progress.coerceIn(0f, 1f)
-                        }
-                    }
-                val swipeOffsetPx by
-                    remember(dismissState) {
-                        derivedStateOf {
-                            kotlin.runCatching { abs(dismissState.requireOffset()) }.getOrDefault(0f)
-                        }
-                    }
-                LaunchedEffect(dismissState.targetValue, isDeleteDispatched) {
-                    if (!isDeleteDispatched && dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
-                        isDeleteDispatched = true
-                        onNoteDelete(note)
-                    }
-                }
-                SwipeToDismissBox(
-                    state = dismissState,
-                    enableDismissFromStartToEnd = false,
-                    backgroundContent = {
-                        swipeDeleteBackground(
-                            isActive = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart,
-                            swipeProgress = swipeProgress,
-                            swipeOffsetPx = swipeOffsetPx,
-                        )
-                    },
-                ) {
-                    noteCard(
-                        note = note,
-                        onClick = { onNoteClick(note) },
-                    )
-                }
+                notesListItem(
+                    note = note,
+                    onDelete = { actions.onNoteDelete(note) },
+                    onClick = { actions.onNoteClick(note) },
+                    onMoveRequest = { pendingMoveNote = note },
+                )
             }
         }
+    }
+    pendingMoveNote?.let { note ->
+        moveNoteDialog(
+            directories = directories,
+            onMoveTo = { directoryId ->
+                actions.onNoteMove(note.id, directoryId)
+                pendingMoveNote = null
+            },
+            onDismiss = { pendingMoveNote = null },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun notesListItem(
+    note: NoteItemUi,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+    onMoveRequest: () -> Unit,
+) {
+    var isDeleteDispatched by remember(note.id) { mutableStateOf(false) }
+    val dismissState =
+        rememberSwipeToDismissBoxState(
+            positionalThreshold = { totalDistance -> totalDistance * 0.22f },
+        )
+    val swipeProgress by
+        remember(dismissState) {
+            derivedStateOf {
+                dismissState.progress.coerceIn(0f, 1f)
+            }
+        }
+    val swipeOffsetPx by
+        remember(dismissState) {
+            derivedStateOf {
+                kotlin.runCatching { abs(dismissState.requireOffset()) }.getOrDefault(0f)
+            }
+        }
+    LaunchedEffect(dismissState.targetValue, isDeleteDispatched) {
+        if (!isDeleteDispatched && dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+            isDeleteDispatched = true
+            onDelete()
+        }
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            swipeDeleteBackground(
+                isActive = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart,
+                swipeProgress = swipeProgress,
+                swipeOffsetPx = swipeOffsetPx,
+            )
+        },
+    ) {
+        noteCard(
+            note = note,
+            onClick = onClick,
+            onLongClick = onMoveRequest,
+        )
     }
 }
 
@@ -257,9 +301,11 @@ private fun swipeDeleteBackground(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun noteCard(
     note: NoteItemUi,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -269,7 +315,10 @@ private fun noteCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
     ) {
         Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
             Text(
@@ -286,6 +335,37 @@ private fun noteCard(
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun moveNoteDialog(
+    directories: List<DirectoryItemUi>,
+    onMoveTo: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Move note") },
+        text = {
+            Column {
+                directories.forEach { dir ->
+                    TextButton(
+                        onClick = { onMoveTo(dir.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(dir.name)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

@@ -58,6 +58,15 @@ class NotesViewModel(
             }
             is NotesUiEvent.RenameDirectory -> renameDirectory(event)
             is NotesUiEvent.DeleteDirectory -> deleteDirectory(event.directoryId)
+            is NotesUiEvent.MoveNoteToDirectory -> {
+                if (event.targetDirectoryId == "all") return
+                viewModelScope.launch {
+                    useCases.moveNoteToFolderUseCase(
+                        folderId = event.targetDirectoryId,
+                        noteId = event.noteId,
+                    )
+                }
+            }
             NotesUiEvent.BackToDirectoryNotes -> backToDirectoryNotes()
             is NotesUiEvent.SaveNote -> saveNote(event.note)
             is NotesUiEvent.DeleteNote -> {
