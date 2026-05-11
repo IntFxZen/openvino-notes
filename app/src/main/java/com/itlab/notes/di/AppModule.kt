@@ -23,9 +23,6 @@ import kotlinx.coroutines.flow.map
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
-// import com.itlab.notes.ui.NotesUseCases
-// import com.itlab.notes.ui.NotesViewModel
-// import org.koin.androidx.viewmodel.dsl.viewModel
 val appModule =
     module {
         single<NotesRepository> { InMemoryNotesRepository() }
@@ -33,7 +30,7 @@ val appModule =
 
         factory { CreateNoteUseCase(get()) }
         factory { CreateFolderUseCase(get()) }
-        factory { DeleteFolderUseCase(get()) }
+        factory { DeleteFolderUseCase(get(), get()) }
         factory { DeleteNoteUseCase(get()) }
         factory { UpdateNoteUseCase(get()) }
         factory { UpdateFolderUseCase(get()) }
@@ -42,7 +39,7 @@ val appModule =
         factory { ObserveFoldersUseCase(get()) }
         factory { UpdateFolderUseCase(get()) }
         factory { GetFolderUseCase(get()) }
-        factory { MoveNoteToFolderUseCase(get()) }
+        factory { MoveNoteToFolderUseCase(get(), get()) }
         factory { ObserveNotesUseCase(get()) }
         factory {
             NotesUseCases(

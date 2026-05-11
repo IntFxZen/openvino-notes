@@ -1,30 +1,27 @@
-package com.itlab.domain.usecase.noteusecase
+package com.itlab.domain.usecase.contentusecase
 
 import com.itlab.domain.repository.NotesRepository
 import com.itlab.domain.usecase.requireNotBlank
 import kotlin.time.Clock
 
-class AddTagUseCase(
-    private val repo: NotesRepository,
+class DeleteContentItemUseCase(
+    private val notesRepository: NotesRepository,
 ) {
     suspend operator fun invoke(
         noteId: String,
-        tagToAdd: String,
+        itemId: String,
     ) {
         requireNotBlank(noteId, "Note id")
-        val normalizedTag = tagToAdd.trim()
-        requireNotBlank(normalizedTag, "Tag")
-
+        requireNotBlank(itemId, "Content item id")
         val note =
-            repo.getNoteById(noteId)
+            notesRepository.getNoteById(noteId)
                 ?: throw IllegalArgumentException("Note not found: $noteId")
 
         val updated =
             note.copy(
-                tags = note.tags + normalizedTag,
+                contentItems = note.contentItems.filterNot { it.id == itemId },
                 updatedAt = Clock.System.now(),
             )
-
-        repo.updateNote(updated)
+        notesRepository.updateNote(updated)
     }
 }
