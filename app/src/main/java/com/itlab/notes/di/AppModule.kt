@@ -7,7 +7,6 @@ import com.itlab.domain.usecase.folderusecase.ObserveFoldersUseCase
 import com.itlab.domain.usecase.folderusecase.UpdateFolderUseCase
 import com.itlab.domain.usecase.noteusecase.CreateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.DeleteNoteUseCase
-import com.itlab.domain.usecase.noteusecase.GetUserIdUseCase
 import com.itlab.domain.usecase.noteusecase.MoveNoteToFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesByFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
@@ -30,7 +29,8 @@ val appModule =
         factory { ObserveFoldersUseCase(get()) }
         factory { MoveNoteToFolderUseCase(get(), get()) }
         factory { ObserveNotesUseCase(get()) }
-        factory { GetUserIdUseCase(get()) }
+        factory { UpdateFolderUseCase(get()) }
+        factory { GetFolderUseCase(get()) }
         factory {
             NotesUseCases(
                 createFolderUseCase = get(),
@@ -44,7 +44,6 @@ val appModule =
                 getFolderUseCase = get(),
                 moveNoteToFolderUseCase = get(),
                 observeNotesUseCase = get(),
-                getUserIdUseCase = get(),
             )
         }
 
