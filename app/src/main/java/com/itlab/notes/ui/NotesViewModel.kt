@@ -177,21 +177,17 @@ class NotesViewModel(
     }
 
     private fun recomputeDirectories() {
-        if (latestFolders.isEmpty()) return
-
         val countsByFolderId = latestNotes.groupingBy { it.folderId }.eachCount()
         val allNotesCount = latestNotes.size
 
+        val allNotesDir = DirectoryItemUi(id = "all", name = "All Notes", noteCount = allNotesCount)
+
         val directories =
-            latestFolders.map { folder ->
-                val count =
-                    if (folder.id == "all") {
-                        allNotesCount
-                    } else {
-                        countsByFolderId[folder.id] ?: 0
-                    }
-                folder.toUi(noteCount = count)
-            }
+            listOf(allNotesDir) +
+                latestFolders.map { folder ->
+                    val count = countsByFolderId[folder.id] ?: 0
+                    folder.toUi(noteCount = count)
+                }
 
         uiState = uiState.copy(directories = directories)
 
