@@ -22,15 +22,12 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.rounded.Edit
@@ -63,13 +60,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 
@@ -78,7 +72,7 @@ private const val RECENT_DIRECTORY_ID = "recent"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun directoriesScreen(
-    directories: List<DirectoryItemUi> = previewDirectoriesFallback(),
+    directories: List<DirectoryItemUi>,
     onCreateDirectory: (String) -> Unit,
     onDeleteDirectory: (DirectoryItemUi) -> Unit,
     onRenameDirectory: (DirectoryItemUi, String) -> Unit,
@@ -116,66 +110,61 @@ fun directoriesScreen(
     if (showCreateDialog) {
         var directoryName by remember { mutableStateOf("") }
         val onDismiss = { showCreateDialog = false }
-        UniversalBasicAlertDialog(
-            onDismissRequest = onDismiss,
-            icon = {
-                Box(
-                    Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                ) {
-                    Icon(
-                        Icons.Rounded.Folder,
-                        modifier = Modifier
+        universalBasicAlertDialog(onDismissRequest = onDismiss, icon = {
+            Box(
+                Modifier
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Icon(
+                    Icons.Rounded.Folder,
+                    modifier =
+                        Modifier
                             .padding(all = 14.dp)
                             .size(32.dp),
-                        contentDescription = "Folder",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            title = {
-                Text(
-                    text = "Create Directory",
-                    fontWeight = FontWeight.W400,
+                    contentDescription = "Folder",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            },
-            input = {
-                DirectoryOutlinedTextField(
-                    value = directoryName,
-                    onValueChange = { directoryName = it },
-                    placeholderText = "Enter directory name...",
-                )
-            },
-            actions = {
-                TextButton(
-                    onClick = onDismiss,
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    Text("Cancel")
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Button(
-                    onClick = {
-                        onCreateDirectory(directoryName)
-                        onDismiss()
-                    },
-                    enabled = directoryName.trim().isNotEmpty(),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("Create")
-                }
             }
-        )
+        }, title = {
+            Text(
+                text = "Create Directory",
+                fontWeight = FontWeight.W400,
+            )
+        }, input = {
+            directoryOutlinedTextField(
+                value = directoryName,
+                onValueChange = { directoryName = it },
+                placeholderText = "Enter directory name...",
+            )
+        }, actions = {
+            TextButton(
+                onClick = onDismiss,
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Text("Cancel")
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Button(
+                onClick = {
+                    onCreateDirectory(directoryName)
+                    onDismiss()
+                },
+                enabled = directoryName.trim().isNotEmpty(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Text("Create")
+            }
+        })
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UniversalBasicAlertDialog(
+private fun universalBasicAlertDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false),
@@ -186,9 +175,10 @@ private fun UniversalBasicAlertDialog(
 ) {
     BasicAlertDialog(
         onDismissRequest = onDismissRequest,
-        modifier = modifier
-            .fillMaxWidth(0.87f)
-            .sizeIn(maxWidth = 560.dp),
+        modifier =
+            modifier
+                .fillMaxWidth(0.87f)
+                .sizeIn(maxWidth = 560.dp),
         properties = properties,
     ) {
         val dialogFocusManager = LocalFocusManager.current
@@ -197,19 +187,20 @@ private fun UniversalBasicAlertDialog(
         ) {
             Box {
                 Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            dialogFocusManager.clearFocus(force = true)
-                        },
+                    modifier =
+                        Modifier
+                            .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                dialogFocusManager.clearFocus(force = true)
+                            },
                 )
                 Column(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     icon()
                     Spacer(Modifier.height(10.dp))
@@ -226,7 +217,7 @@ private fun UniversalBasicAlertDialog(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         actions()
                     }
@@ -289,10 +280,9 @@ private fun directoriesList(
                             focusManager.clearFocus(force = true)
                         },
                     )
-                }
-                .padding(horizontal = 12.dp),
+                }.padding(horizontal = 12.dp),
     ) {
-        DirectorySearchBar()
+        directorySearchBar()
         LazyColumn(
             modifier = Modifier.weight(1f, fill = false),
             contentPadding = PaddingValues(bottom = 12.dp),
@@ -380,9 +370,10 @@ private fun directoriesHeroPanel(
         modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 14.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -457,12 +448,12 @@ private fun directoriesBlock(
 }
 
 @Composable
-fun DirectorySearchBar(
+fun directorySearchBar(
     modifier: Modifier = Modifier,
-    onQueryChange: (String) -> Unit = {}
+    onQueryChange: (String) -> Unit = {},
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    AppSearchField(
+    appSearchField(
         value = searchQuery,
         onValueChange = {
             searchQuery = it
@@ -494,8 +485,7 @@ private fun directoryRow(
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
-                )
-                .padding(horizontal = 12.dp, vertical = 11.dp),
+                ).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -564,22 +554,22 @@ private fun directoryActionsDialog(
     onRename: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    UniversalBasicAlertDialog(
+    universalBasicAlertDialog(
         onDismissRequest = onDismiss,
-
         icon = {
             Box(
                 Modifier
                     .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
             ) {
                 Icon(
                     Icons.Rounded.Edit,
-                    modifier = Modifier
-                        .padding(all = 14.dp)
-                        .size(32.dp),
+                    modifier =
+                        Modifier
+                            .padding(all = 14.dp)
+                            .size(32.dp),
                     contentDescription = "Folder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -587,8 +577,9 @@ private fun directoryActionsDialog(
             Text("Directory actions")
         },
         input = {
-            Text("Choose action for \"${directory.name}\"",
-                style = MaterialTheme.typography.bodyLarge
+            Text(
+                "Choose action for \"${directory.name}\"",
+                style = MaterialTheme.typography.bodyLarge,
             )
         },
         actions = {
@@ -621,21 +612,22 @@ private fun directoryRenameDialog(
     onDismiss: () -> Unit,
 ) {
     var renameName by remember(directory.id) { mutableStateOf(directory.name) }
-    UniversalBasicAlertDialog(
+    universalBasicAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Box(
                 Modifier
                     .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
             ) {
                 Icon(
                     Icons.Rounded.Edit,
-                    modifier = Modifier
-                        .padding(all = 14.dp)
-                        .size(32.dp),
+                    modifier =
+                        Modifier
+                            .padding(all = 14.dp)
+                            .size(32.dp),
                     contentDescription = "Folder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -643,7 +635,7 @@ private fun directoryRenameDialog(
             Text("Rename directory")
         },
         input = {
-            DirectoryOutlinedTextField(
+            directoryOutlinedTextField(
                 value = renameName,
                 onValueChange = { renameName = it },
                 placeholderText = "Enter directory name...",
@@ -669,7 +661,7 @@ private fun directoryRenameDialog(
 }
 
 @Composable
-private fun DirectoryOutlinedTextField(
+private fun directoryOutlinedTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholderText: String,
@@ -683,7 +675,7 @@ private fun DirectoryOutlinedTextField(
             Icon(
                 imageVector = Icons.Rounded.TextFields,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         modifier = modifier.fillMaxWidth(),
@@ -693,26 +685,18 @@ private fun DirectoryOutlinedTextField(
         suffix = {
             Icons.Default.TextFields
         },
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContainerColor = Color.Transparent,
-            focusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            focusedIndicatorColor = MaterialTheme.colorScheme.outline,
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-            disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        )
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                disabledContainerColor = Color.Transparent,
+                focusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+            ),
     )
 }
-
-private fun previewDirectoriesFallback(): List<DirectoryItemUi> =
-    listOf(
-        DirectoryItemUi(id = "all", name = "All Notes", noteCount = 0),
-        DirectoryItemUi(id = "study", name = "My Study", noteCount = 0),
-        DirectoryItemUi(id = "cook", name = "How to Cook", noteCount = 0),
-        DirectoryItemUi(id = "poems", name = "My poems", noteCount = 0),
-        DirectoryItemUi(id = "guides", name = "Guides", noteCount = 0),
-    )
