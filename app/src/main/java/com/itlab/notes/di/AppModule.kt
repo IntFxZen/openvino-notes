@@ -29,6 +29,8 @@ val appModule =
         factory { ObserveFoldersUseCase(get()) }
         factory { MoveNoteToFolderUseCase(get(), get()) }
         factory { ObserveNotesUseCase(get()) }
+        factory { UpdateFolderUseCase(get()) }
+        factory { GetFolderUseCase(get()) }
         factory {
             NotesUseCases(
                 createFolderUseCase = get(),
