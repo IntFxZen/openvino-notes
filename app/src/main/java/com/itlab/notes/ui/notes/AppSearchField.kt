@@ -32,7 +32,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AppSearchField(
+fun appSearchField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -43,18 +43,20 @@ fun AppSearchField(
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(56.dp),
         contentAlignment = Alignment.Center,
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .onFocusChanged { isFocused = it.isFocused },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .onFocusChanged { isFocused = it.isFocused },
             singleLine = true,
             interactionSource = interactionSource,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
@@ -78,8 +80,16 @@ fun AppSearchField(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 24.dp).size(25.dp),
+                            tint =
+                                if (isFocused) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            modifier =
+                                Modifier
+                                    .padding(start = 24.dp)
+                                    .size(25.dp),
                         )
                     },
                     trailingIcon = {
@@ -100,14 +110,15 @@ fun AppSearchField(
                         }
                     },
                     shape = CircleShape,
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        cursorColor = MaterialTheme.colorScheme.primary,
-                    ),
+                    colors =
+                        TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                        ),
                     contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
                 )
             },
