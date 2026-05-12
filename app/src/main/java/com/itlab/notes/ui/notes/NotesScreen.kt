@@ -269,7 +269,12 @@ private fun noteCard(
         Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
             Text(
                 text = note.title,
-                color = colors.onSurface,
+                color =
+                    if (isSelected) {
+                        colors.onPrimaryContainer
+                    } else {
+                        colors.onSurface
+                    },
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(Modifier.height(8.dp))
