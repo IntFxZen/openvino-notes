@@ -41,6 +41,11 @@ fun appSearchField(
     var isFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
+    val onClearClick: () -> Unit = {
+        onValueChange("")
+        isFocused = false
+        focusManager.clearFocus(force = true)
+    }
 
     Box(
         modifier =
@@ -62,66 +67,102 @@ fun appSearchField(
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             decorationBox = { innerTextField ->
-                TextFieldDefaults.DecorationBox(
-                    value = value,
-                    innerTextField = innerTextField,
-                    enabled = true,
-                    singleLine = true,
-                    visualTransformation = VisualTransformation.None,
-                    interactionSource = interactionSource,
-                    placeholder = {
-                        Text(
-                            placeholderText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint =
-                                if (isFocused) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            modifier =
-                                Modifier
-                                    .padding(start = 24.dp)
-                                    .size(25.dp),
-                        )
-                    },
-                    trailingIcon = {
-                        if (isFocused) {
-                            IconButton(
-                                onClick = {
-                                    onValueChange("")
-                                    isFocused = false
-                                    focusManager.clearFocus(force = true)
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    },
-                    shape = CircleShape,
-                    colors =
-                        TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            cursorColor = MaterialTheme.colorScheme.primary,
+                appSearchFieldDecorationBox(
+                    input =
+                        AppSearchFieldDecorationInput(
+                            value = value,
+                            isFocused = isFocused,
+                            placeholderText = placeholderText,
+                            onClearClick = onClearClick,
                         ),
-                    contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+                    innerTextField = innerTextField,
+                    interactionSource = interactionSource,
                 )
             },
         )
     }
 }
+
+@Composable
+private fun appSearchFieldDecorationBox(
+    input: AppSearchFieldDecorationInput,
+    innerTextField: @Composable () -> Unit,
+    interactionSource: MutableInteractionSource,
+) {
+    TextFieldDefaults.DecorationBox(
+        value = input.value,
+        innerTextField = innerTextField,
+        enabled = true,
+        singleLine = true,
+        visualTransformation = VisualTransformation.None,
+        interactionSource = interactionSource,
+        placeholder = {
+            Text(
+                input.placeholderText,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        leadingIcon = {
+            appSearchFieldLeadingIcon(isFocused = input.isFocused)
+        },
+        trailingIcon = {
+            appSearchFieldTrailingIcon(
+                isFocused = input.isFocused,
+                onClearClick = input.onClearClick,
+            )
+        },
+        shape = CircleShape,
+        colors =
+            TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                cursorColor = MaterialTheme.colorScheme.primary,
+            ),
+        contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun appSearchFieldLeadingIcon(isFocused: Boolean) {
+    Icon(
+        imageVector = Icons.Default.Search,
+        contentDescription = null,
+        tint =
+            if (isFocused) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        modifier =
+            Modifier
+                .padding(start = 24.dp)
+                .size(25.dp),
+    )
+}
+
+@Composable
+private fun appSearchFieldTrailingIcon(
+    isFocused: Boolean,
+    onClearClick: () -> Unit,
+) {
+    if (isFocused) {
+        IconButton(onClick = onClearClick) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private data class AppSearchFieldDecorationInput(
+    val value: String,
+    val isFocused: Boolean,
+    val placeholderText: String,
+    val onClearClick: () -> Unit,
+)
