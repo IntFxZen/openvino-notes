@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.itlab.notes.ui.notes
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTimeFilled
@@ -60,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -277,6 +281,13 @@ private fun directoriesTopBar(onAddDirectoryClick: () -> Unit) {
     )
 }
 
+private fun Modifier.clearFocusOnTap(focusManager: FocusManager): Modifier =
+    pointerInput(Unit) {
+        detectTapGestures(
+            onTap = { focusManager.clearFocus(force = true) },
+        )
+    }
+
 @Composable
 private fun directoriesList(
     directories: List<DirectoryItemUi>,
@@ -285,99 +296,80 @@ private fun directoriesList(
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var directoryPendingDelete by remember { mutableStateOf<DirectoryItemUi?>(null) }
-    var directoryPendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
+    var pendingDelete by remember { mutableStateOf<DirectoryItemUi?>(null) }
+    var pendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
     val focusManager = LocalFocusManager.current
-    val favoriteDirectoryIds = setOf("all", "study", "cook")
-    val favoriteDirectories = directories.filter { it.id in favoriteDirectoryIds }
-    val regularDirectories = directories.filterNot { it.id in favoriteDirectoryIds }
-    val regularCount = directories.count { it.id != "all" }
-    val totalNotesCount = directories.firstOrNull { it.id == "all" }?.noteCount ?: directories.sumOf { it.noteCount }
-    val recentDirectory = DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = totalNotesCount)
+
+    val sectionData =
+        remember(directories) {
+            val favIds = setOf("all", "study", "cook")
+            val total =
+                directories.firstOrNull { it.id == "all" }?.noteCount ?: directories.sumOf { it.noteCount }
+            val favs = directories.filter { it.id in favIds }
+            val regs = directories.filterNot { it.id in favIds }
+            val recent = DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = total)
+            Triple(favs, regs, recent)
+        }
+
     Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            focusManager.clearFocus(force = true)
-                        },
-                    )
-                }.padding(horizontal = 12.dp),
+        modifier = modifier.fillMaxWidth().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
     ) {
         directorySearchBar()
         LazyColumn(
             modifier = Modifier.weight(1f, fill = false),
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
+            fun LazyListScope.addSection(
+                title: String,
+                dirs: List<DirectoryItemUi>,
+                isRegularBlock: Boolean,
+            ) {
+                if (dirs.isEmpty()) return
+                item { sectionTitle(title = title) }
+                item {
+                    directoriesBlock(
+                        directories = dirs,
+                        isRegularDirectoriesBlock = isRegularBlock,
+                        onDirectoryClick = onDirectoryClick,
+                        onDirectoryLongClick = { pendingDelete = it },
+                    )
+                }
+            }
+
             item {
                 directoriesHeroPanel(
-                    directoriesCount = regularCount,
-                    totalNotesCount = totalNotesCount,
+                    directoriesCount = directories.count { it.id != "all" },
+                    totalNotesCount = sectionData.third.noteCount,
                 )
             }
-            item {
-                sectionTitle(title = "Continue working")
-            }
-            item {
-                directoriesBlock(
-                    directories = listOf(recentDirectory),
-                    isRegularDirectoriesBlock = true,
-                    onDirectoryClick = onDirectoryClick,
-                    onDirectoryLongClick = { directoryPendingDelete = it },
-                )
-            }
-            if (favoriteDirectories.isNotEmpty()) {
-                item {
-                    sectionTitle(title = "Favorite directories")
-                }
-                item {
-                    directoriesBlock(
-                        directories = favoriteDirectories,
-                        isRegularDirectoriesBlock = false,
-                        onDirectoryClick = onDirectoryClick,
-                        onDirectoryLongClick = { directoryPendingDelete = it },
-                    )
-                }
-            }
-            if (regularDirectories.isNotEmpty()) {
-                item {
-                    sectionTitle(title = "Regular directories")
-                }
-                item {
-                    directoriesBlock(
-                        directories = regularDirectories,
-                        isRegularDirectoriesBlock = true,
-                        onDirectoryClick = onDirectoryClick,
-                        onDirectoryLongClick = { directoryPendingDelete = it },
-                    )
-                }
-            }
+            addSection("Continue working", listOf(sectionData.third), true)
+            addSection("Favorite directories", sectionData.first, false)
+            addSection("Regular directories", sectionData.second, true)
         }
     }
-    directoryPendingDelete?.let { dir ->
+
+    pendingDelete?.let { dir ->
         directoryActionsDialog(
             directory = dir,
             onDelete = {
                 onDirectoryLongClick(dir)
-                directoryPendingDelete = null
+                pendingDelete = null
             },
             onRename = {
-                directoryPendingDelete = null
-                directoryPendingRename = dir
+                pendingDelete = null
+                pendingRename = dir
             },
-            onDismiss = { directoryPendingDelete = null },
+            onDismiss = { pendingDelete = null },
         )
     }
-    directoryPendingRename?.let { dir ->
+    pendingRename?.let { dir ->
         directoryRenameDialog(
             directory = dir,
             onSave = { newName ->
                 onDirectoryRename(dir, newName)
-                directoryPendingRename = null
+                pendingRename = null
             },
-            onDismiss = { directoryPendingRename = null },
+            onDismiss = { pendingRename = null },
         )
     }
 }
