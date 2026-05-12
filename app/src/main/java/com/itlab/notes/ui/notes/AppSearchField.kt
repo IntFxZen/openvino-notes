@@ -66,7 +66,7 @@ fun appSearchField(
             interactionSource = interactionSource,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            decorationBox = { innerTextField ->
+            decorationBox = { content ->
                 appSearchFieldDecorationBox(
                     input =
                         AppSearchFieldDecorationInput(
@@ -75,9 +75,10 @@ fun appSearchField(
                             placeholderText = placeholderText,
                             onClearClick = onClearClick,
                         ),
-                    innerTextField = innerTextField,
                     interactionSource = interactionSource,
-                )
+                ) {
+                    content()
+                }
             },
         )
     }
@@ -86,12 +87,12 @@ fun appSearchField(
 @Composable
 private fun appSearchFieldDecorationBox(
     input: AppSearchFieldDecorationInput,
-    innerTextField: @Composable () -> Unit,
     interactionSource: MutableInteractionSource,
+    content: @Composable () -> Unit,
 ) {
     TextFieldDefaults.DecorationBox(
         value = input.value,
-        innerTextField = innerTextField,
+        innerTextField = content,
         enabled = true,
         singleLine = true,
         visualTransformation = VisualTransformation.None,
