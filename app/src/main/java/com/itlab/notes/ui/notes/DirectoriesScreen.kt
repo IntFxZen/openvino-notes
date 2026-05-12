@@ -108,59 +108,86 @@ fun directoriesScreen(
         )
     }
     if (showCreateDialog) {
-        var directoryName by remember { mutableStateOf("") }
-        val onDismiss = { showCreateDialog = false }
-        universalBasicAlertDialog(onDismissRequest = onDismiss, icon = {
-            Box(
-                Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Icon(
-                    Icons.Rounded.Folder,
-                    modifier =
-                        Modifier
-                            .padding(all = 14.dp)
-                            .size(32.dp),
-                    contentDescription = "Folder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }, title = {
-            Text(
-                text = "Create Directory",
-                fontWeight = FontWeight.W400,
-            )
-        }, input = {
-            directoryOutlinedTextField(
-                value = directoryName,
-                onValueChange = { directoryName = it },
-                placeholderText = "Enter directory name...",
-            )
-        }, actions = {
-            TextButton(
-                onClick = onDismiss,
-                contentPadding = PaddingValues(horizontal = 12.dp),
-            ) {
-                Text("Cancel")
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Button(
-                onClick = {
-                    onCreateDirectory(directoryName)
-                    onDismiss()
-                },
-                enabled = directoryName.trim().isNotEmpty(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text("Create")
-            }
-        })
+        directoriesCreateDirectoryDialog(
+            onDismissRequest = { showCreateDialog = false },
+            onCreateDirectory = onCreateDirectory,
+        )
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun directoriesCreateDirectoryDialog(
+    onDismissRequest: () -> Unit,
+    onCreateDirectory: (String) -> Unit,
+) {
+    var directoryName by remember { mutableStateOf("") }
+    universalBasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        slots =
+            UniversalBasicAlertDialogSlots(
+                icon = {
+                    Box(
+                        Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                    ) {
+                        Icon(
+                            Icons.Rounded.Folder,
+                            modifier =
+                                Modifier
+                                    .padding(all = 14.dp)
+                                    .size(32.dp),
+                            contentDescription = "Folder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Create Directory",
+                        fontWeight = FontWeight.W400,
+                    )
+                },
+                input = {
+                    directoryOutlinedTextField(
+                        value = directoryName,
+                        onValueChange = { directoryName = it },
+                        placeholderText = "Enter directory name...",
+                    )
+                },
+                actions = {
+                    TextButton(
+                        onClick = onDismissRequest,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        Text("Cancel")
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Button(
+                        onClick = {
+                            onCreateDirectory(directoryName)
+                            onDismissRequest()
+                        },
+                        enabled = directoryName.trim().isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Text("Create")
+                    }
+                },
+            ),
+    )
+}
+
+private data class UniversalBasicAlertDialogSlots(
+    val icon: @Composable () -> Unit,
+    val title: @Composable () -> Unit,
+    val input: @Composable () -> Unit,
+    val actions: @Composable RowScope.() -> Unit,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,10 +195,7 @@ private fun universalBasicAlertDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false),
-    icon: @Composable () -> Unit,
-    title: @Composable () -> Unit,
-    input: @Composable () -> Unit,
-    actions: @Composable RowScope.() -> Unit,
+    slots: UniversalBasicAlertDialogSlots,
 ) {
     BasicAlertDialog(
         onDismissRequest = onDismissRequest,
@@ -202,24 +226,24 @@ private fun universalBasicAlertDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    icon()
+                    slots.icon()
                     Spacer(Modifier.height(10.dp))
                     CompositionLocalProvider(
                         LocalContentColor provides MaterialTheme.colorScheme.onSurface,
                     ) {
                         ProvideTextStyle(MaterialTheme.typography.headlineMedium) {
-                            title()
+                            slots.title()
                         }
                     }
                     Spacer(Modifier.height(14.dp))
-                    input()
+                    slots.input()
                     Spacer(Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        actions()
+                        slots.actions(this)
                     }
                 }
             }
@@ -556,52 +580,55 @@ private fun directoryActionsDialog(
 ) {
     universalBasicAlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Box(
-                Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Icon(
-                    Icons.Rounded.Edit,
-                    modifier =
+        slots =
+            UniversalBasicAlertDialogSlots(
+                icon = {
+                    Box(
                         Modifier
-                            .padding(all = 14.dp)
-                            .size(32.dp),
-                    contentDescription = "Folder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        title = {
-            Text("Directory actions")
-        },
-        input = {
-            Text(
-                "Choose action for \"${directory.name}\"",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        },
-        actions = {
-            TextButton(onClick = onRename) {
-                Text("Rename")
-            }
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                    ) {
+                        Icon(
+                            Icons.Rounded.Edit,
+                            modifier =
+                                Modifier
+                                    .padding(all = 14.dp)
+                                    .size(32.dp),
+                            contentDescription = "Folder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                title = {
+                    Text("Directory actions")
+                },
+                input = {
+                    Text(
+                        "Choose action for \"${directory.name}\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                actions = {
+                    TextButton(onClick = onRename) {
+                        Text("Rename")
+                    }
 
-            Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-            Button(
-                onClick = onDelete,
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                shape = MaterialTheme.shapes.medium,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
-            ) {
-                Text("Delete")
-            }
-        },
+                    Button(
+                        onClick = onDelete,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
+                            ),
+                    ) {
+                        Text("Delete")
+                    }
+                },
+            ),
     )
 }
 
@@ -614,49 +641,52 @@ private fun directoryRenameDialog(
     var renameName by remember(directory.id) { mutableStateOf(directory.name) }
     universalBasicAlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Box(
-                Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Icon(
-                    Icons.Rounded.Edit,
-                    modifier =
+        slots =
+            UniversalBasicAlertDialogSlots(
+                icon = {
+                    Box(
                         Modifier
-                            .padding(all = 14.dp)
-                            .size(32.dp),
-                    contentDescription = "Folder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        title = {
-            Text("Rename directory")
-        },
-        input = {
-            directoryOutlinedTextField(
-                value = renameName,
-                onValueChange = { renameName = it },
-                placeholderText = "Enter directory name...",
-            )
-        },
-        actions = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                    ) {
+                        Icon(
+                            Icons.Rounded.Edit,
+                            modifier =
+                                Modifier
+                                    .padding(all = 14.dp)
+                                    .size(32.dp),
+                            contentDescription = "Folder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                title = {
+                    Text("Rename directory")
+                },
+                input = {
+                    directoryOutlinedTextField(
+                        value = renameName,
+                        onValueChange = { renameName = it },
+                        placeholderText = "Enter directory name...",
+                    )
+                },
+                actions = {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
 
-            Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-            Button(
-                onClick = { onSave(renameName) },
-                enabled = renameName.trim().isNotEmpty() && renameName != directory.name,
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text("Save")
-            }
-        },
+                    Button(
+                        onClick = { onSave(renameName) },
+                        enabled = renameName.trim().isNotEmpty() && renameName != directory.name,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Text("Save")
+                    }
+                },
+            ),
     )
 }
 
