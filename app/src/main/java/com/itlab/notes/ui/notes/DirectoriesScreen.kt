@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -130,23 +131,9 @@ private fun directoriesCreateDirectoryDialog(
         onDismissRequest = onDismissRequest,
         slots =
             UniversalBasicAlertDialogSlots(
-                icon = {
-                    Box(
-                        Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
-                    ) {
-                        Icon(
-                            Icons.Rounded.Folder,
-                            modifier =
-                                Modifier
-                                    .padding(all = 14.dp)
-                                    .size(32.dp),
-                            contentDescription = "Folder",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
+                icon = Icons.Rounded.Folder,
+                iconContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                iconTintColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
                     Text(
                         text = "Create Directory",
@@ -186,8 +173,10 @@ private fun directoriesCreateDirectoryDialog(
     )
 }
 
-private data class UniversalBasicAlertDialogSlots(
-    val icon: @Composable () -> Unit,
+internal data class UniversalBasicAlertDialogSlots(
+    val icon: ImageVector,
+    val iconContainerColor: Color,
+    val iconTintColor: Color,
     val title: @Composable () -> Unit,
     val input: @Composable () -> Unit,
     val actions: @Composable RowScope.() -> Unit,
@@ -195,7 +184,7 @@ private data class UniversalBasicAlertDialogSlots(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun universalBasicAlertDialog(
+internal fun universalBasicAlertDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false),
@@ -230,7 +219,21 @@ private fun universalBasicAlertDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    slots.icon()
+                    Box(
+                        Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(slots.iconContainerColor),
+                    ) {
+                        Icon(
+                            slots.icon,
+                            modifier =
+                                Modifier
+                                    .padding(all = 14.dp)
+                                    .size(30.dp),
+                            contentDescription = null,
+                            tint = slots.iconTintColor,
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
                     CompositionLocalProvider(
                         LocalContentColor provides MaterialTheme.colorScheme.onSurface,
@@ -302,7 +305,7 @@ private fun directoriesList(
 
     val sectionData =
         remember(directories) {
-            val favIds = setOf("all", "study", "cook")
+            val favIds = setOf("all")
             val total =
                 directories.firstOrNull { it.id == "all" }?.noteCount ?: directories.sumOf { it.noteCount }
             val favs = directories.filter { it.id in favIds }
@@ -574,23 +577,9 @@ private fun directoryActionsDialog(
         onDismissRequest = onDismiss,
         slots =
             UniversalBasicAlertDialogSlots(
-                icon = {
-                    Box(
-                        Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
-                    ) {
-                        Icon(
-                            Icons.Rounded.Edit,
-                            modifier =
-                                Modifier
-                                    .padding(all = 14.dp)
-                                    .size(32.dp),
-                            contentDescription = "Folder",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
+                icon = Icons.Rounded.Edit,
+                iconContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                iconTintColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
                     Text("Directory actions")
                 },
@@ -635,23 +624,9 @@ private fun directoryRenameDialog(
         onDismissRequest = onDismiss,
         slots =
             UniversalBasicAlertDialogSlots(
-                icon = {
-                    Box(
-                        Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
-                    ) {
-                        Icon(
-                            Icons.Rounded.Edit,
-                            modifier =
-                                Modifier
-                                    .padding(all = 14.dp)
-                                    .size(32.dp),
-                            contentDescription = "Folder",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
+                icon = Icons.Rounded.Edit,
+                iconContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                iconTintColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
                     Text("Rename directory")
                 },
