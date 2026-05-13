@@ -1,11 +1,13 @@
 package com.itlab.notes.ui.notes
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,15 +15,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,10 +34,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -43,6 +49,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -52,6 +59,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun notesListScreen(
+    directoryId: String,
     directoryName: String,
     notes: List<NoteItemUi>,
     directories: List<DirectoryItemUi>,
@@ -112,6 +120,7 @@ fun notesListScreen(
             )
             if (showMoveDialog && selectedNoteIds.isNotEmpty()) {
                 notesMoveNotesDialog(
+                    currentDirectoryId = directoryId,
                     directories = directories,
                     onDismissRequest = { showMoveDialog = false },
                     onFolderChosen = { folderId ->
@@ -207,11 +216,16 @@ private fun notesTopBar(
 
 @Composable
 private fun notesMoveNotesDialog(
+    currentDirectoryId: String,
     directories: List<DirectoryItemUi>,
     onDismissRequest: () -> Unit,
     onFolderChosen: (String) -> Unit,
 ) {
-    val moveTargets = remember(directories) { directories.filter { it.id != "all" } }
+    val moveTargets =
+        remember(directories, currentDirectoryId) {
+            directories.filter { it.id != "all" && it.id != currentDirectoryId }
+        }
+    val moveTargetsListState = rememberLazyListState()
     universalBasicAlertDialog(
         onDismissRequest = onDismissRequest,
         slots =
@@ -226,29 +240,11 @@ private fun notesMoveNotesDialog(
                     )
                 },
                 input = {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        items(
-                            items = moveTargets,
-                            key = { it.id },
-                        ) { dir ->
-                            TextButton(
-                                onClick = { onFolderChosen(dir.id) },
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                                shape = MaterialTheme.shapes.medium,
-                            ) {
-                                Text(
-                                    text = dir.name,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    }
+                    notesMoveTargetsBlock(
+                        directories = moveTargets,
+                        listState = moveTargetsListState,
+                        onFolderChosen = onFolderChosen,
+                    )
                 },
                 actions = {
                     TextButton(
@@ -260,6 +256,91 @@ private fun notesMoveNotesDialog(
                 },
             ),
     )
+}
+
+@Composable
+private fun notesMoveTargetsBlock(
+    directories: List<DirectoryItemUi>,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onFolderChosen: (String) -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            items(
+                items = directories,
+                key = { it.id },
+            ) { dir ->
+                notesMoveTargetRow(
+                    directory = dir,
+                    onClick = { onFolderChosen(dir.id) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp),
+                )
+                if (dir.id != directories.lastOrNull()?.id) {
+                    notesMoveTargetsDivider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun notesMoveTargetRow(
+    directory: DirectoryItemUi,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Folder,
+            contentDescription = null,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(25.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = directory.name,
+            color = colors.onSurface,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun notesMoveTargetsDivider() {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .padding(horizontal = 10.dp)
+                    .fillMaxWidth(0.9f),
+            contentAlignment = Alignment.Center,
+        ) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                thickness = 1.dp,
+            )
+        }
+    }
 }
 
 @Composable
