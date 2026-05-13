@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -69,7 +70,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 
 private const val RECENT_DIRECTORY_ID = "recent"
@@ -142,6 +145,7 @@ private fun directoriesCreateDirectoryDialog(
                 },
                 input = {
                     directoryOutlinedTextField(
+                        modifier = Modifier.padding(top = 5.dp),
                         value = directoryName,
                         onValueChange = { directoryName = it },
                         placeholderText = "Enter directory name...",
@@ -242,7 +246,7 @@ internal fun universalBasicAlertDialog(
                             slots.title()
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(5.dp))
                     slots.input()
                     Spacer(Modifier.height(10.dp))
                     Row(
@@ -313,13 +317,15 @@ private fun directoriesList(
             val recent = DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = total)
             Triple(favs, regs, recent)
         }
+    val totalNotesCount = sectionData.third.noteCount
+    val allNotesDirectory = remember(directories) { directories.firstOrNull { it.id == "all" } }
 
     Column(
-        modifier = modifier.fillMaxWidth().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
+        modifier = modifier.fillMaxSize().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
     ) {
         directorySearchBar()
         LazyColumn(
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
             fun LazyListScope.addSection(
@@ -342,12 +348,32 @@ private fun directoriesList(
             item {
                 directoriesHeroPanel(
                     directoriesCount = directories.count { it.id != "all" },
-                    totalNotesCount = sectionData.third.noteCount,
+                    totalNotesCount = totalNotesCount,
                 )
             }
             addSection("Continue working", listOf(sectionData.third), true)
             addSection("Favorite directories", sectionData.first, false)
             addSection("Regular directories", sectionData.second, true)
+
+            if (sectionData.second.isEmpty()) {
+                item {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 80.dp)
+                                .heightIn(min = 220.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        directoriesEmptyPlaceholder(
+                            onOpenAllNotes = {
+                                allNotesDirectory?.let { onDirectoryClick(it) }
+                            },
+                            openAllNotesEnabled = allNotesDirectory != null,
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -419,6 +445,48 @@ private fun directoriesHeroPanel(
 }
 
 @Composable
+private fun directoriesEmptyPlaceholder(
+    onOpenAllNotes: () -> Unit,
+    openAllNotesEnabled: Boolean,
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(colors.surfaceContainer),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Folder,
+                contentDescription = null,
+                modifier = Modifier.padding(14.dp).size(32.dp),
+                tint = colors.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "No directories yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text =
+                "Tap + to create a directory and organize your notes.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 50.dp),
+        )
+    }
+}
+
+@Composable
 private fun sectionTitle(title: String) {
     Text(
         text = title,
@@ -447,9 +515,7 @@ private fun directoriesBlock(
                     directory = dir,
                     isRegularDirectory = isRegularDirectoriesBlock,
                     onClick = {
-                        if (!isSpecialDirectory(dir.id)) {
-                            onDirectoryClick(dir)
-                        }
+                        onDirectoryClick(dir)
                     },
                     onLongClick = {
                         if (!isSpecialDirectory(dir.id)) {
@@ -587,6 +653,7 @@ private fun directoryActionsDialog(
                     Text(
                         "Choose action for \"${directory.name}\"",
                         style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
                     )
                 },
                 actions = {
@@ -632,6 +699,7 @@ private fun directoryRenameDialog(
                 },
                 input = {
                     directoryOutlinedTextField(
+                        modifier = Modifier.padding(top = 5.dp),
                         value = renameName,
                         onValueChange = { renameName = it },
                         placeholderText = "Enter directory name...",

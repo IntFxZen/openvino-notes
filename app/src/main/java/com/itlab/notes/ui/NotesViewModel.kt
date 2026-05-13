@@ -11,7 +11,10 @@ import com.itlab.domain.model.NoteFolder
 import com.itlab.notes.ui.notes.DirectoryItemUi
 import com.itlab.notes.ui.notes.NoteItemUi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+private const val RECENT_DIRECTORY_ID = "recent"
 
 class NotesViewModel(
     private val useCases: NotesUseCases,
@@ -58,7 +61,7 @@ class NotesViewModel(
             is NotesUiEvent.RenameDirectory -> renameDirectory(event)
             is NotesUiEvent.DeleteDirectory -> deleteDirectory(event.directoryId)
             is NotesUiEvent.MoveNoteToDirectory -> {
-                if (event.targetDirectoryId == "all") return
+                if (event.targetDirectoryId == "all" || event.targetDirectoryId == RECENT_DIRECTORY_ID) return
                 viewModelScope.launch {
                     useCases.moveNoteToFolderUseCase(
                         folderId = event.targetDirectoryId,
@@ -78,7 +81,7 @@ class NotesViewModel(
 
     private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
         val normalized = event.newName.trim()
-        if (normalized.isBlank() || event.directoryId == "all") return
+        if (normalized.isBlank() || event.directoryId == "all" || event.directoryId == RECENT_DIRECTORY_ID) return
         viewModelScope.launch {
             val existingFolder = useCases.getFolderUseCase(event.directoryId) ?: return@launch
             useCases.updateFolderUseCase(existingFolder.copy(name = normalized))
@@ -86,7 +89,7 @@ class NotesViewModel(
     }
 
     private fun deleteDirectory(directoryId: String) {
-        if (directoryId == "all") return
+        if (directoryId == "all" || directoryId == RECENT_DIRECTORY_ID) return
         viewModelScope.launch {
             useCases.deleteFolderUseCase(directoryId)
             if ((uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory?.id == directoryId) {
@@ -102,14 +105,16 @@ class NotesViewModel(
                 notes = emptyList(),
             )
         notesJob?.cancel()
-        val isAll = directory.id == "all"
         notesJob =
             viewModelScope.launch {
                 val flow =
-                    if (isAll) {
-                        useCases.observeNotesUseCase()
-                    } else {
-                        useCases.observeNotesByFolderUseCase(directory.id)
+                    when (directory.id) {
+                        "all" -> useCases.observeNotesUseCase()
+                        RECENT_DIRECTORY_ID ->
+                            useCases.observeNotesUseCase().map { notes ->
+                                notes.sortedByDescending { it.updatedAt }
+                            }
+                        else -> useCases.observeNotesByFolderUseCase(directory.id)
                     }
 
                 flow.collect { notes ->
@@ -254,4 +259,10 @@ internal fun Note.applyUiUpdate(
     )
 }
 
-internal fun String.asDomainFolderId(): String? = if (this == "all") null else this
+internal fun String.asDomainFolderId(): String? =
+    when (this) {
+        "all",
+        RECENT_DIRECTORY_ID,
+        -> null
+        else -> this
+    }

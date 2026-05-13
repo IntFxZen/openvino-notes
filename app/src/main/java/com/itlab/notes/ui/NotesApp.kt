@@ -33,6 +33,7 @@ fun notesApp() {
 
         is NotesUiScreen.DirectoryNotes -> {
             notesListScreen(
+                directoryId = screen.directory.id,
                 directoryName = screen.directory.name,
                 notes = state.notes,
                 directories = state.directories,
