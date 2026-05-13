@@ -3,18 +3,28 @@ package com.itlab.notes.ui.notes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -25,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,18 +54,25 @@ import androidx.compose.ui.unit.dp
 fun notesListScreen(
     directoryName: String,
     notes: List<NoteItemUi>,
+    directories: List<DirectoryItemUi>,
     actions: NotesListActions,
 ) {
     val colors = MaterialTheme.colorScheme
     val selectedNoteIds = remember { mutableStateListOf<String>() }
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val isSelectionMode = selectedNoteIds.isNotEmpty()
     val selectedCount = selectedNoteIds.size
-    val clearSelection = { selectedNoteIds.clear() }
+    val clearSelection = {
+        selectedNoteIds.clear()
+        showMoveDialog = false
+        showDeleteDialog = false
+    }
     val deleteSelected = {
         notes.filter { it.id in selectedNoteIds }.forEach { note ->
             actions.onNoteDelete(note)
         }
-        selectedNoteIds.clear()
+        clearSelection()
     }
     val handleBack = {
         if (isSelectionMode) {
@@ -70,7 +89,8 @@ fun notesListScreen(
                 directoryName = directoryName,
                 selectedCount = selectedCount,
                 onBack = handleBack,
-                onDeleteSelected = deleteSelected,
+                onMoveSelected = { showMoveDialog = true },
+                onDeleteSelected = { showDeleteDialog = true },
             )
         },
         floatingActionButton = {
@@ -79,16 +99,36 @@ fun notesListScreen(
             }
         },
     ) { paddingValues ->
-        notesListContent(
-            notes = notes,
-            paddingValues = paddingValues,
-            selectedNoteIds = selectedNoteIds,
-            actions =
-                NotesListContentActions(
-                    onNoteDelete = actions.onNoteDelete,
-                    onNoteClick = actions.onNoteClick,
-                ),
-        )
+        Box(Modifier.fillMaxSize()) {
+            notesListContent(
+                notes = notes,
+                paddingValues = paddingValues,
+                selectedNoteIds = selectedNoteIds,
+                actions =
+                    NotesListContentActions(
+                        onNoteDelete = actions.onNoteDelete,
+                        onNoteClick = actions.onNoteClick,
+                    ),
+            )
+            if (showMoveDialog && selectedNoteIds.isNotEmpty()) {
+                notesMoveNotesDialog(
+                    directories = directories,
+                    onDismissRequest = { showMoveDialog = false },
+                    onFolderChosen = { folderId ->
+                        selectedNoteIds.forEach { noteId -> actions.onNoteMove(noteId, folderId) }
+                        selectedNoteIds.clear()
+                        showMoveDialog = false
+                    },
+                )
+            }
+            if (showDeleteDialog && selectedNoteIds.isNotEmpty()) {
+                notesDeleteConfirmationDialog(
+                    selectedCount = selectedCount,
+                    onDismissRequest = { showDeleteDialog = false },
+                    onConfirmDelete = deleteSelected,
+                )
+            }
+        }
     }
 }
 
@@ -111,6 +151,7 @@ private fun notesTopBar(
     directoryName: String,
     selectedCount: Int,
     onBack: () -> Unit,
+    onMoveSelected: () -> Unit,
     onDeleteSelected: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -137,6 +178,13 @@ private fun notesTopBar(
         },
         actions = {
             if (selectedCount > 0) {
+                IconButton(onClick = onMoveSelected) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.CompareArrows,
+                        contentDescription = null,
+                        tint = colors.onSurface,
+                    )
+                }
                 IconButton(onClick = onDeleteSelected) {
                     Icon(
                         imageVector = Icons.Default.Delete,
@@ -153,6 +201,112 @@ private fun notesTopBar(
                 navigationIconContentColor = Color.Unspecified,
                 titleContentColor = Color.Unspecified,
                 actionIconContentColor = Color.Unspecified,
+            ),
+    )
+}
+
+@Composable
+private fun notesMoveNotesDialog(
+    directories: List<DirectoryItemUi>,
+    onDismissRequest: () -> Unit,
+    onFolderChosen: (String) -> Unit,
+) {
+    val moveTargets = remember(directories) { directories.filter { it.id != "all" } }
+    universalBasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        slots =
+            UniversalBasicAlertDialogSlots(
+                icon = Icons.AutoMirrored.Filled.CompareArrows,
+                iconContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                iconTintColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                title = {
+                    Text(
+                        text = "Move to folder",
+                        fontWeight = FontWeight.W400,
+                    )
+                },
+                input = {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        items(
+                            items = moveTargets,
+                            key = { it.id },
+                        ) { dir ->
+                            TextButton(
+                                onClick = { onFolderChosen(dir.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
+                                Text(
+                                    text = dir.name,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = onDismissRequest,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        Text("Cancel")
+                    }
+                },
+            ),
+    )
+}
+
+@Composable
+private fun notesDeleteConfirmationDialog(
+    selectedCount: Int,
+    onDismissRequest: () -> Unit,
+    onConfirmDelete: () -> Unit,
+) {
+    universalBasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        slots =
+            UniversalBasicAlertDialogSlots(
+                icon = Icons.Default.Delete,
+                iconContainerColor = MaterialTheme.colorScheme.errorContainer,
+                iconTintColor = MaterialTheme.colorScheme.onErrorContainer,
+                title = {
+                    Text(
+                        text = "Delete selected notes?",
+                    )
+                },
+                input = {
+                    Text(
+                        text = "This will permanently delete $selectedCount note(s).",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                actions = {
+                    TextButton(
+                        onClick = onDismissRequest,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = onConfirmDelete,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
+                            ),
+                    ) {
+                        Text("Delete")
+                    }
+                },
             ),
     )
 }

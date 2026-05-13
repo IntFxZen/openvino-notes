@@ -35,6 +35,7 @@ fun notesApp() {
             notesListScreen(
                 directoryName = screen.directory.name,
                 notes = state.notes,
+                directories = state.directories,
                 actions =
                     NotesListActions(
                         onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectories) },
