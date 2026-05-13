@@ -17,8 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
@@ -225,7 +226,6 @@ private fun notesMoveNotesDialog(
         remember(directories, currentDirectoryId) {
             directories.filter { it.id != "all" && it.id != currentDirectoryId }
         }
-    val moveTargetsListState = rememberLazyListState()
     universalBasicAlertDialog(
         onDismissRequest = onDismissRequest,
         slots =
@@ -242,7 +242,6 @@ private fun notesMoveNotesDialog(
                 input = {
                     notesMoveTargetsBlock(
                         directories = moveTargets,
-                        listState = moveTargetsListState,
                         onFolderChosen = onFolderChosen,
                     )
                 },
@@ -261,29 +260,44 @@ private fun notesMoveNotesDialog(
 @Composable
 private fun notesMoveTargetsBlock(
     directories: List<DirectoryItemUi>,
-    listState: androidx.compose.foundation.lazy.LazyListState,
     onFolderChosen: (String) -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth().height(180.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(
-                items = directories,
-                key = { it.id },
-            ) { dir ->
-                notesMoveTargetRow(
-                    directory = dir,
-                    onClick = { onFolderChosen(dir.id) },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp),
+        if (directories.isEmpty()) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "No other folders to move to",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (dir.id != directories.lastOrNull()?.id) {
-                    notesMoveTargetsDivider()
+            }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 180.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                directories.forEachIndexed { index, dir ->
+                    notesMoveTargetRow(
+                        directory = dir,
+                        onClick = { onFolderChosen(dir.id) },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp),
+                    )
+                    if (index < directories.lastIndex) {
+                        notesMoveTargetsDivider()
+                    }
                 }
             }
         }
