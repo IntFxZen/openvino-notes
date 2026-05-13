@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.Add
@@ -33,7 +34,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.TextFields
@@ -47,13 +47,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -66,10 +65,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -725,43 +726,82 @@ private fun directoryRenameDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun directoryOutlinedTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholderText: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false,
 ) {
-    OutlinedTextField(
+    val interactionSource = remember { MutableInteractionSource() }
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
+    val colors =
+        OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = scheme.surfaceContainer,
+            unfocusedContainerColor = scheme.surfaceContainer,
+            disabledContainerColor = Color.Transparent,
+            focusedTextColor = scheme.onSurfaceVariant,
+            unfocusedTextColor = scheme.onSurfaceVariant,
+            disabledTextColor = scheme.onSurfaceVariant.copy(alpha = 0.38f),
+            focusedBorderColor = scheme.outline,
+            unfocusedBorderColor = scheme.outline.copy(alpha = 0.5f),
+            disabledBorderColor = scheme.outline.copy(alpha = 0.5f),
+            cursorColor = scheme.primary,
+            errorBorderColor = scheme.error,
+            errorCursorColor = scheme.error,
+        )
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurfaceVariant)
+    val contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+
+    BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholderText) },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Rounded.TextFields,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
+        textStyle = textStyle,
+        singleLine = true,
+        cursorBrush = SolidColor(scheme.primary),
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = enabled,
+                singleLine = true,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                isError = isError,
+                placeholder = {
+                    Text(
+                        text = placeholderText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = scheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.TextFields,
+                        contentDescription = null,
+                        tint = scheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
+                    )
+                },
+                colors = colors,
+                contentPadding = contentPadding,
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = enabled,
+                        isError = isError,
+                        interactionSource = interactionSource,
+                        colors = colors,
+                        shape = shape,
+                    )
+                },
             )
         },
-        modifier = modifier.fillMaxWidth(),
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge,
-        shape = MaterialTheme.shapes.medium,
-        suffix = {
-            Icons.Default.TextFields
-        },
-        colors =
-            TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                disabledContainerColor = Color.Transparent,
-                focusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-            ),
     )
 }
