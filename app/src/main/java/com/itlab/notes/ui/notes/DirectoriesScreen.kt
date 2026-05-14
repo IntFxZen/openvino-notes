@@ -118,6 +118,7 @@ fun directoriesScreen(
     }
     if (showCreateDialog) {
         directoriesCreateDirectoryDialog(
+            directories = directories,
             onDismissRequest = { showCreateDialog = false },
             onCreateDirectory = onCreateDirectory,
         )
@@ -127,10 +128,18 @@ fun directoriesScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun directoriesCreateDirectoryDialog(
+    directories: List<DirectoryItemUi>,
     onDismissRequest: () -> Unit,
     onCreateDirectory: (String) -> Unit,
 ) {
     var directoryName by remember { mutableStateOf("") }
+    val trimmedName = directoryName.trim()
+    val nameAlreadyExists =
+        trimmedName.isNotEmpty() &&
+            directories.any { dir ->
+                !isSpecialDirectory(dir.id) &&
+                    dir.name.trim().equals(trimmedName, ignoreCase = true)
+            }
     universalBasicAlertDialog(
         onDismissRequest = onDismissRequest,
         slots =
@@ -150,6 +159,13 @@ private fun directoriesCreateDirectoryDialog(
                         value = directoryName,
                         onValueChange = { directoryName = it },
                         placeholderText = "Enter directory name...",
+                        isError = nameAlreadyExists,
+                        errorMessage =
+                            if (nameAlreadyExists) {
+                                "Папка с таким названием уже существует"
+                            } else {
+                                null
+                            },
                     )
                 },
                 actions = {
@@ -167,7 +183,7 @@ private fun directoriesCreateDirectoryDialog(
                             onCreateDirectory(directoryName)
                             onDismissRequest()
                         },
-                        enabled = directoryName.trim().isNotEmpty(),
+                        enabled = trimmedName.isNotEmpty() && !nameAlreadyExists,
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         shape = MaterialTheme.shapes.medium,
                     ) {
@@ -735,6 +751,7 @@ private fun directoryOutlinedTextField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isError: Boolean = false,
+    errorMessage: String? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scheme = MaterialTheme.colorScheme
@@ -775,6 +792,18 @@ private fun directoryOutlinedTextField(
                 visualTransformation = VisualTransformation.None,
                 interactionSource = interactionSource,
                 isError = isError,
+                supportingText =
+                    if (isError && errorMessage != null) {
+                        {
+                            Text(
+                                text = errorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = scheme.error,
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 placeholder = {
                     Text(
                         text = placeholderText,
