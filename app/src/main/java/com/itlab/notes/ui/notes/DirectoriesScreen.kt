@@ -410,6 +410,7 @@ private fun directoriesList(
     }
     pendingRename?.let { dir ->
         directoryRenameDialog(
+            directories = directories,
             directory = dir,
             onSave = { newName ->
                 onDirectoryRename(dir, newName)
@@ -699,11 +700,20 @@ private fun directoryActionsDialog(
 
 @Composable
 private fun directoryRenameDialog(
+    directories: List<DirectoryItemUi>,
     directory: DirectoryItemUi,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var renameName by remember(directory.id) { mutableStateOf(directory.name) }
+    val trimmedName = renameName.trim()
+    val nameAlreadyExists =
+        trimmedName.isNotEmpty() &&
+            directories.any { dir ->
+                !isSpecialDirectory(dir.id) &&
+                    dir.id != directory.id &&
+                    dir.name.trim().equals(trimmedName, ignoreCase = true)
+            }
     universalBasicAlertDialog(
         onDismissRequest = onDismiss,
         slots =
@@ -720,6 +730,13 @@ private fun directoryRenameDialog(
                         value = renameName,
                         onValueChange = { renameName = it },
                         placeholderText = "Enter directory name...",
+                        isError = nameAlreadyExists,
+                        errorMessage =
+                            if (nameAlreadyExists) {
+                                "Папка с таким названием уже существует"
+                            } else {
+                                null
+                            },
                     )
                 },
                 actions = {
@@ -731,7 +748,7 @@ private fun directoryRenameDialog(
 
                     Button(
                         onClick = { onSave(renameName) },
-                        enabled = renameName.trim().isNotEmpty() && renameName != directory.name,
+                        enabled = trimmedName.isNotEmpty() && renameName != directory.name && !nameAlreadyExists,
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         shape = MaterialTheme.shapes.medium,
                     ) {

@@ -224,32 +224,32 @@ internal fun Note.toUi(): NoteItemUi =
                 .filterIsInstance<ContentItem.Text>()
                 .joinToString("\n") { it.text },
         folderId = folderId,
+        attachments = contentItems.filterNot { it is ContentItem.Text },
     )
+
+internal fun NoteItemUi.toContentItems(): List<ContentItem> =
+    buildList {
+        if (content.isNotBlank()) add(ContentItem.Text(content))
+        addAll(attachments)
+    }
 
 internal fun NoteItemUi.toDomain(folderId: String?): Note =
     Note(
         id = id,
         title = title,
         folderId = folderId,
-        contentItems = listOf(ContentItem.Text(content)),
+        contentItems = toContentItems(),
     )
 
 internal fun Note.applyUiUpdate(
     ui: NoteItemUi,
     targetFolderId: String?,
-): Note {
-    val nonTextContent = contentItems.filterNot { it is ContentItem.Text }
-    val updatedText =
-        ui.content
-            .takeIf { it.isNotBlank() }
-            ?.let { ContentItem.Text(it) }
-
-    return copy(
+): Note =
+    copy(
         title = ui.title,
         folderId = targetFolderId,
-        contentItems = if (updatedText != null) nonTextContent + updatedText else nonTextContent,
+        contentItems = ui.toContentItems(),
     )
-}
 
 internal fun String.asDomainFolderId(): String? =
     when (this) {

@@ -528,7 +528,18 @@ private fun noteCard(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = note.content,
+                text =
+                    buildString {
+                        if (note.content.isNotBlank()) {
+                            append(note.content)
+                        }
+                        if (note.attachments.isNotEmpty()) {
+                            if (isNotEmpty()) append(" · ")
+                            append(note.attachments.size)
+                            append(" attachment")
+                            if (note.attachments.size != 1) append("s")
+                        }
+                    },
                 color =
                     if (isSelected) {
                         colors.onPrimaryContainer
