@@ -1,8 +1,11 @@
 package com.itlab.notes.ui.notes
 
+import com.itlab.domain.model.ContentItem
+
 data class NoteItemUi(
     val id: String,
     val title: String,
     val content: String,
     val folderId: String? = null,
+    val attachments: List<ContentItem> = emptyList(),
 )

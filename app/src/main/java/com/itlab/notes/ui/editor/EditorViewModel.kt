@@ -3,17 +3,22 @@ package com.itlab.notes.ui.editor
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.itlab.domain.model.ContentItem
 import com.itlab.notes.ui.notes.NoteItemUi
 
 class EditorViewModel(
     initialNote: NoteItemUi,
 ) {
     private val noteId: String = initialNote.id
+    private val folderId: String? = initialNote.folderId
 
     var title: String by mutableStateOf(initialNote.title)
         private set
 
     var content: String by mutableStateOf(initialNote.content)
+        private set
+
+    var attachments: List<ContentItem> by mutableStateOf(initialNote.attachments)
         private set
 
     fun onTitleChange(newTitle: String) {
@@ -24,10 +29,20 @@ class EditorViewModel(
         content = newContent
     }
 
+    fun addAttachment(item: ContentItem) {
+        attachments = attachments + item
+    }
+
+    fun removeAttachment(id: String) {
+        attachments = attachments.filterNot { it.id == id }
+    }
+
     fun buildUpdatedNote(): NoteItemUi =
         NoteItemUi(
             id = noteId,
             title = title,
             content = content,
+            folderId = folderId,
+            attachments = attachments,
         )
 }

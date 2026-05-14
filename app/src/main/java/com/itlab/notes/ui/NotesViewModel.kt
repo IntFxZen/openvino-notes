@@ -152,10 +152,7 @@ class NotesViewModel(
         val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory
         if (dir != null) {
             val newNote =
-                Note(
-                    folderId = dir.id.asDomainFolderId(),
-                    userId = useCases.getUserIdUseCase() ?: "anonymous_user",
-                ).toUi()
+                Note(folderId = dir.id.asDomainFolderId()).toUi()
             uiState =
                 uiState.copy(
                     screen = NotesUiScreen.NoteEditor(directory = dir, note = newNote),
@@ -173,13 +170,12 @@ class NotesViewModel(
     private fun saveNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         viewModelScope.launch {
-            val userId = useCases.getUserIdUseCase() ?: "anonymous_user"
             val targetFolderId = note.folderId ?: editor.directory.id.asDomainFolderId()
             val existing = latestNotes.firstOrNull { it.id == note.id }
             if (existing != null) {
                 useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
             } else {
-                useCases.createNoteUseCase(note.toDomain(userId = userId, folderId = targetFolderId))
+                useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
             }
             uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
         }
@@ -228,36 +224,32 @@ internal fun Note.toUi(): NoteItemUi =
                 .filterIsInstance<ContentItem.Text>()
                 .joinToString("\n") { it.text },
         folderId = folderId,
+        attachments = contentItems.filterNot { it is ContentItem.Text },
     )
 
-internal fun NoteItemUi.toDomain(
-    userId: String,
-    folderId: String?,
-): Note =
+internal fun NoteItemUi.toContentItems(): List<ContentItem> =
+    buildList {
+        if (content.isNotBlank()) add(ContentItem.Text(content))
+        addAll(attachments)
+    }
+
+internal fun NoteItemUi.toDomain(folderId: String?): Note =
     Note(
         id = id,
         title = title,
         folderId = folderId,
-        contentItems = listOf(ContentItem.Text(text = content)),
-        userId = userId,
+        contentItems = toContentItems(),
     )
 
 internal fun Note.applyUiUpdate(
     ui: NoteItemUi,
     targetFolderId: String?,
-): Note {
-    val nonTextContent = contentItems.filterNot { it is ContentItem.Text }
-    val updatedText =
-        ui.content
-            .takeIf { it.isNotBlank() }
-            ?.let { ContentItem.Text(text = it) }
-
-    return copy(
+): Note =
+    copy(
         title = ui.title,
         folderId = targetFolderId,
-        contentItems = if (updatedText != null) nonTextContent + updatedText else nonTextContent,
+        contentItems = ui.toContentItems(),
     )
-}
 
 internal fun String.asDomainFolderId(): String? =
     when (this) {
