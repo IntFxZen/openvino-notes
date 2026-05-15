@@ -33,6 +33,11 @@ class EditorViewModel(
         attachments = attachments + item
     }
 
+    fun addAttachments(items: List<ContentItem>) {
+        if (items.isEmpty()) return
+        attachments = attachments + items
+    }
+
     fun removeAttachment(id: String) {
         attachments = attachments.filterNot { it.id == id }
     }

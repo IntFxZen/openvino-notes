@@ -11,6 +11,11 @@ import java.util.UUID
 object NoteMediaImport {
     private const val SUBDIR = "note_attachments"
 
+    fun importImagesFromUris(context: Context, uris: List<Uri>): List<ContentItem.Image> =
+        uris.mapNotNull { uri ->
+            runCatching { importImageFromUri(context, uri) }.getOrNull()
+        }
+
     fun importImageFromUri(context: Context, uri: Uri): ContentItem.Image {
         val appContext = context.applicationContext
         val resolver = appContext.contentResolver
