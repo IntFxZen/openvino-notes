@@ -9,12 +9,24 @@ import kotlinx.coroutines.flow.map
 class SearchNotesUseCase(
     private val repo: NotesRepository,
 ) {
-    operator fun invoke(query: String): Flow<List<Note>> {
+    /**
+     * @param folderId when set, limits results to notes in that folder (for search inside a directory).
+     */
+    operator fun invoke(
+        query: String,
+        folderId: String? = null,
+    ): Flow<List<Note>> {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) return repo.observeNotes()
 
         return repo.observeNotes().map { notes ->
-            notes.filter { note -> note.matches(normalizedQuery) }
+            val scoped =
+                if (folderId == null) {
+                    notes
+                } else {
+                    notes.filter { it.folderId == folderId }
+                }
+            scoped.filter { note -> note.matches(normalizedQuery) }
         }
     }
 

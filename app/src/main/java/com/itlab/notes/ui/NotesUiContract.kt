@@ -24,6 +24,8 @@ data class NotesUiState(
     val screen: NotesUiScreen = NotesUiScreen.Directories,
     val directories: List<DirectoryItemUi> = emptyList(),
     val notes: List<NoteItemUi> = emptyList(),
+    val notesSearchQuery: String = "",
+    val directorySearchQuery: String = "",
 )
 
 sealed interface NotesUiEvent {
@@ -65,6 +67,14 @@ sealed interface NotesUiEvent {
     data class MoveNoteToDirectory(
         val noteId: String,
         val targetDirectoryId: String,
+    ) : NotesUiEvent
+
+    data class NotesSearchQueryChanged(
+        val query: String,
+    ) : NotesUiEvent
+
+    data class DirectorySearchQueryChanged(
+        val query: String,
     ) : NotesUiEvent
 }
 

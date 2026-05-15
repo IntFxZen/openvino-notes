@@ -11,6 +11,7 @@ import com.itlab.domain.model.NoteFolder
 import com.itlab.notes.ui.notes.DirectoryItemUi
 import com.itlab.notes.ui.notes.NoteItemUi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -76,7 +77,17 @@ class NotesViewModel(
                     useCases.deleteNoteUseCase(event.noteId)
                 }
             }
+            is NotesUiEvent.NotesSearchQueryChanged -> onNotesSearchQueryChanged(event.query)
+            is NotesUiEvent.DirectorySearchQueryChanged -> {
+                uiState = uiState.copy(directorySearchQuery = event.query)
+            }
         }
+    }
+
+    private fun onNotesSearchQueryChanged(query: String) {
+        val directory = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory ?: return
+        uiState = uiState.copy(notesSearchQuery = query)
+        startNotesCollection(directory, query)
     }
 
     private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
@@ -103,31 +114,61 @@ class NotesViewModel(
             uiState.copy(
                 screen = NotesUiScreen.DirectoryNotes(directory = directory),
                 notes = emptyList(),
+                notesSearchQuery = "",
             )
+        startNotesCollection(directory, searchQuery = "")
+    }
+
+    private fun startNotesCollection(
+        directory: DirectoryItemUi,
+        searchQuery: String,
+    ) {
         notesJob?.cancel()
         notesJob =
             viewModelScope.launch {
-                val flow =
-                    when (directory.id) {
-                        "all" -> useCases.observeNotesUseCase()
-                        RECENT_DIRECTORY_ID ->
-                            useCases.observeNotesUseCase().map { notes ->
-                                notes.sortedByDescending { it.updatedAt }
-                            }
-                        else -> useCases.observeNotesByFolderUseCase(directory.id)
-                    }
-
-                flow.collect { notes ->
+                notesFlow(directory, searchQuery).collect { notes ->
+                    val opened = uiState.screen as? NotesUiScreen.DirectoryNotes ?: return@collect
                     uiState =
                         uiState.copy(
                             notes = notes.map { it.toUi() },
+                            notesSearchQuery = searchQuery,
                             screen =
                                 NotesUiScreen.DirectoryNotes(
-                                    directory = directory.copy(noteCount = notes.size),
+                                    directory = opened.directory.copy(noteCount = notes.size),
                                 ),
                         )
                 }
             }
+    }
+
+    private fun notesFlow(
+        directory: DirectoryItemUi,
+        searchQuery: String,
+    ): Flow<List<Note>> {
+        val normalizedQuery = searchQuery.trim()
+        return if (normalizedQuery.isBlank()) {
+            when (directory.id) {
+                "all" -> useCases.observeNotesUseCase()
+                RECENT_DIRECTORY_ID ->
+                    useCases.observeNotesUseCase().map { notes ->
+                        notes.sortedByDescending { it.updatedAt }
+                    }
+                else -> useCases.observeNotesByFolderUseCase(directory.id)
+            }
+        } else {
+            val searchFlow =
+                useCases.searchNotesUseCase(
+                    query = normalizedQuery,
+                    folderId = directory.folderIdForSearch(),
+                )
+            when (directory.id) {
+                RECENT_DIRECTORY_ID ->
+                    searchFlow.map { notes ->
+                        notes.sortedByDescending { it.updatedAt }
+                    }
+                else -> searchFlow
+            }
+        }
     }
 
     private val backToDirectories: () -> Unit = {
@@ -135,36 +176,34 @@ class NotesViewModel(
             uiState.copy(
                 screen = NotesUiScreen.Directories,
                 notes = emptyList(),
+                notesSearchQuery = "",
             )
     }
 
     private fun openNote(note: NoteItemUi) {
-        val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory
-        if (dir != null) {
-            uiState =
-                uiState.copy(
-                    screen = NotesUiScreen.NoteEditor(directory = dir, note = note),
-                )
-        }
+        val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory ?: return
+        notesJob?.cancel()
+        uiState =
+            uiState.copy(
+                screen = NotesUiScreen.NoteEditor(directory = dir, note = note),
+            )
     }
 
     private fun createNote() {
-        val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory
-        if (dir != null) {
-            val newNote =
-                Note(folderId = dir.id.asDomainFolderId()).toUi()
-            uiState =
-                uiState.copy(
-                    screen = NotesUiScreen.NoteEditor(directory = dir, note = newNote),
-                )
-        }
+        val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory ?: return
+        notesJob?.cancel()
+        val newNote = Note(folderId = dir.id.asDomainFolderId()).toUi()
+        uiState =
+            uiState.copy(
+                screen = NotesUiScreen.NoteEditor(directory = dir, note = newNote),
+            )
     }
 
     private fun backToDirectoryNotes() {
-        val editor = uiState.screen as? NotesUiScreen.NoteEditor
-        if (editor != null) {
-            uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
-        }
+        val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
+        val directory = editor.directory
+        uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = directory))
+        startNotesCollection(directory, uiState.notesSearchQuery)
     }
 
     private fun saveNote(note: NoteItemUi) {
@@ -178,6 +217,7 @@ class NotesViewModel(
                 useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
             }
             uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
+            startNotesCollection(editor.directory, uiState.notesSearchQuery)
         }
     }
 
@@ -258,3 +298,22 @@ internal fun String.asDomainFolderId(): String? =
         -> null
         else -> this
     }
+
+internal fun DirectoryItemUi.folderIdForSearch(): String? =
+    when (id) {
+        "all",
+        RECENT_DIRECTORY_ID,
+        -> null
+        else -> id
+    }
+
+internal fun filterDirectoriesByName(
+    directories: List<DirectoryItemUi>,
+    query: String,
+): List<DirectoryItemUi> {
+    val normalized = query.trim()
+    if (normalized.isBlank()) return directories
+    return directories.filter { directory ->
+        directory.name.contains(normalized, ignoreCase = true)
+    }
+}

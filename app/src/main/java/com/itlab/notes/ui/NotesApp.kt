@@ -2,6 +2,7 @@ package com.itlab.notes.ui
 
 import androidx.compose.runtime.Composable
 import com.itlab.notes.ui.editor.editorScreen
+import com.itlab.notes.ui.filterDirectoriesByName
 import com.itlab.notes.ui.notes.NotesListActions
 import com.itlab.notes.ui.notes.directoriesScreen
 import com.itlab.notes.ui.notes.notesListScreen
@@ -15,7 +16,15 @@ fun notesApp() {
     when (val screen = state.screen) {
         NotesUiScreen.Directories -> {
             directoriesScreen(
-                directories = state.directories,
+                directories =
+                    filterDirectoriesByName(
+                        directories = state.directories,
+                        query = state.directorySearchQuery,
+                    ),
+                searchQuery = state.directorySearchQuery,
+                onSearchQueryChange = { query ->
+                    viewModel.onEvent(NotesUiEvent.DirectorySearchQueryChanged(query))
+                },
                 onCreateDirectory = { name ->
                     viewModel.onEvent(NotesUiEvent.CreateDirectory(name))
                 },
@@ -36,6 +45,10 @@ fun notesApp() {
                 directoryId = screen.directory.id,
                 directoryName = screen.directory.name,
                 notes = state.notes,
+                searchQuery = state.notesSearchQuery,
+                onSearchQueryChange = { query ->
+                    viewModel.onEvent(NotesUiEvent.NotesSearchQueryChanged(query))
+                },
                 directories = state.directories,
                 actions =
                     NotesListActions(

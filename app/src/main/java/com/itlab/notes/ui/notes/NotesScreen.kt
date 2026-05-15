@@ -64,6 +64,8 @@ fun notesListScreen(
     directoryId: String,
     directoryName: String,
     notes: List<NoteItemUi>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     directories: List<DirectoryItemUi>,
     actions: NotesListActions,
 ) {
@@ -112,6 +114,8 @@ fun notesListScreen(
         Box(Modifier.fillMaxSize()) {
             notesListContent(
                 notes = notes,
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
                 paddingValues = paddingValues,
                 selectedNoteIds = selectedNoteIds,
                 actions =
@@ -425,6 +429,8 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
 @Composable
 private fun notesListContent(
     notes: List<NoteItemUi>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     paddingValues: androidx.compose.foundation.layout.PaddingValues,
     selectedNoteIds: MutableList<String>,
     actions: NotesListContentActions,
@@ -436,7 +442,10 @@ private fun notesListContent(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
     ) {
-        searchField()
+        searchField(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+        )
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -558,11 +567,13 @@ private fun noteCardDescriptionText(note: NoteItemUi): String =
     }
 
 @Composable
-private fun searchField() {
-    var searchQuery by remember { mutableStateOf("") }
+private fun searchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
     appSearchField(
-        value = searchQuery,
-        onValueChange = { searchQuery = it },
+        value = query,
+        onValueChange = onQueryChange,
         modifier = Modifier.padding(vertical = 16.dp),
         placeholderText = "Search notes",
     )
