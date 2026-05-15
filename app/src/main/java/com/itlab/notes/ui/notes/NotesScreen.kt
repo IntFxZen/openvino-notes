@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -528,30 +529,33 @@ private fun noteCard(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text =
-                    buildString {
-                        if (note.content.isNotBlank()) {
-                            append(note.content)
-                        }
-                        if (note.attachments.isNotEmpty()) {
-                            if (isNotEmpty()) append(" · ")
-                            append(note.attachments.size)
-                            append(" attachment")
-                            if (note.attachments.size != 1) append("s")
-                        }
-                    },
+                text = noteCardDescriptionText(note),
                 color =
                     if (isSelected) {
                         colors.onPrimaryContainer
+                    } else if (note.content.isBlank()) {
+                        colors.onSurfaceVariant.copy(alpha = 0.7f)
                     } else {
                         colors.onSurfaceVariant
                     },
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 4,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
+
+private fun noteCardDescriptionText(note: NoteItemUi): String =
+    buildString {
+        append(if (note.content.isNotBlank()) note.content else "No description")
+        if (note.attachments.isNotEmpty()) {
+            append(" · ")
+            append(note.attachments.size)
+            append(" attachment")
+            if (note.attachments.size != 1) append("s")
+        }
+    }
 
 @Composable
 private fun searchField() {
