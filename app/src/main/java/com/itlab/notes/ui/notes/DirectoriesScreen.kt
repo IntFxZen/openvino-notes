@@ -82,6 +82,8 @@ private const val RECENT_DIRECTORY_ID = "recent"
 @Composable
 fun directoriesScreen(
     directories: List<DirectoryItemUi>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onCreateDirectory: (String) -> Unit,
     onDeleteDirectory: (DirectoryItemUi) -> Unit,
     onRenameDirectory: (DirectoryItemUi, String) -> Unit,
@@ -110,6 +112,8 @@ fun directoriesScreen(
     ) { paddingValues ->
         directoriesList(
             directories = directories,
+            searchQuery = searchQuery,
+            onSearchQueryChange = onSearchQueryChange,
             onDirectoryLongClick = onDeleteDirectory,
             onDirectoryRename = onRenameDirectory,
             onDirectoryClick = onDirectoryClick,
@@ -315,6 +319,8 @@ private fun Modifier.clearFocusOnTap(focusManager: FocusManager): Modifier =
 @Composable
 private fun directoriesList(
     directories: List<DirectoryItemUi>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onDirectoryLongClick: (DirectoryItemUi) -> Unit,
     onDirectoryRename: (DirectoryItemUi, String) -> Unit,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
@@ -340,7 +346,10 @@ private fun directoriesList(
     Column(
         modifier = modifier.fillMaxSize().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
     ) {
-        directorySearchBar()
+        directorySearchBar(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+        )
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = 12.dp),
@@ -552,16 +561,13 @@ private fun directoriesBlock(
 
 @Composable
 fun directorySearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onQueryChange: (String) -> Unit = {},
 ) {
-    var searchQuery by remember { mutableStateOf("") }
     appSearchField(
-        value = searchQuery,
-        onValueChange = {
-            searchQuery = it
-            onQueryChange(it)
-        },
+        value = query,
+        onValueChange = onQueryChange,
         modifier = modifier,
         placeholderText = "Search directories",
     )
