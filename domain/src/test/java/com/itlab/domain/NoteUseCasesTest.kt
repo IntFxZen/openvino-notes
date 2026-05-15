@@ -379,6 +379,33 @@ class NoteUseCasesTest {
         }
 
     @Test
+    fun searchNotes_scopedToFolderId() =
+        runBlocking {
+            val repo = FakeNotesRepo()
+            val useCase = SearchNotesUseCase(repo)
+
+            repo.createNote(
+                Note(
+                    id = "n1",
+                    folderId = "folder-a",
+                    title = "Молоко в папке A",
+                ),
+            )
+            repo.createNote(
+                Note(
+                    id = "n2",
+                    folderId = "folder-b",
+                    title = "Молоко в папке B",
+                ),
+            )
+
+            val result = useCase("молоко", folderId = "folder-a").first()
+
+            assertEquals(1, result.size)
+            assertEquals("n1", result.first().id)
+        }
+
+    @Test
     fun addTag_trimsIncomingTag() =
         runBlocking {
             val repo = FakeNotesRepo()
