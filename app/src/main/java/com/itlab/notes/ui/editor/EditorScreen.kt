@@ -4,18 +4,24 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,6 +63,11 @@ import com.itlab.notes.media.NoteMediaImport
 import com.itlab.notes.ui.notes.NoteItemUi
 import java.io.File
 
+private data class EditorAttachmentsViewerState(
+    val attachments: List<ContentItem>,
+    val initialIndex: Int,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun editorScreen(
@@ -68,15 +79,15 @@ fun editorScreen(
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     val editorVm = remember(note.id) { EditorViewModel(initialNote = note) }
-    var fullscreenImage by remember { mutableStateOf<ContentItem.Image?>(null) }
+    var attachmentsViewer by remember { mutableStateOf<EditorAttachmentsViewerState?>(null) }
 
-    val pickImage =
+    val pickImages =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia(),
-        ) { uri: Uri? ->
-            if (uri == null) return@rememberLauncherForActivityResult
-            runCatching { NoteMediaImport.importImageFromUri(context, uri) }
-                .onSuccess { editorVm.addAttachment(it) }
+            contract = ActivityResultContracts.PickMultipleVisualMedia(),
+        ) { uris: List<Uri> ->
+            if (uris.isEmpty()) return@rememberLauncherForActivityResult
+            val imported = NoteMediaImport.importImagesFromUris(context, uris)
+            editorVm.addAttachments(imported)
         }
 
     Scaffold(
@@ -87,7 +98,7 @@ fun editorScreen(
                 title = editorVm.title,
                 onBack = onBack,
                 onAddImage = {
-                    pickImage.launch(
+                    pickImages.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
@@ -105,7 +116,16 @@ fun editorScreen(
             attachments = editorVm.attachments,
             onTitleChange = editorVm::onTitleChange,
             onContentChange = editorVm::onContentChange,
-            onImageClick = { fullscreenImage = it },
+            onAttachmentClick = { item ->
+                val index = editorVm.attachments.indexOfFirst { it.id == item.id }
+                if (index >= 0) {
+                    attachmentsViewer =
+                        EditorAttachmentsViewerState(
+                            attachments = editorVm.attachments,
+                            initialIndex = index,
+                        )
+                }
+            },
             onRemoveAttachment = { item ->
                 if (item is ContentItem.Image) {
                     NoteMediaImport.deleteImportedFileIfOwned(context, item.source.localPath)
@@ -116,10 +136,11 @@ fun editorScreen(
         )
     }
 
-    fullscreenImage?.let { image ->
-        editorFullScreenImageViewer(
-            image = image,
-            onDismiss = { fullscreenImage = null },
+    attachmentsViewer?.let { viewer ->
+        editorFullScreenAttachmentsViewer(
+            attachments = viewer.attachments,
+            initialIndex = viewer.initialIndex,
+            onDismiss = { attachmentsViewer = null },
         )
     }
 }
@@ -153,7 +174,7 @@ private fun editorTopBar(
             IconButton(onClick = onAddImage) {
                 Icon(
                     Icons.Default.Image,
-                    contentDescription = "Add image",
+                    contentDescription = "Add images",
                     tint = colors.onSurface,
                 )
             }
@@ -191,7 +212,7 @@ private fun editorContent(
     attachments: List<ContentItem>,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
-    onImageClick: (ContentItem.Image) -> Unit,
+    onAttachmentClick: (ContentItem) -> Unit,
     onRemoveAttachment: (ContentItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -215,7 +236,7 @@ private fun editorContent(
         if (attachments.isNotEmpty()) {
             editorAttachmentsRow(
                 attachments = attachments,
-                onImageClick = onImageClick,
+                onAttachmentClick = onAttachmentClick,
                 onRemove = onRemoveAttachment,
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -226,7 +247,7 @@ private fun editorContent(
 @Composable
 private fun editorAttachmentsRow(
     attachments: List<ContentItem>,
-    onImageClick: (ContentItem.Image) -> Unit,
+    onAttachmentClick: (ContentItem) -> Unit,
     onRemove: (ContentItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -240,7 +261,7 @@ private fun editorAttachmentsRow(
             key = { it.id },
         ) { item ->
             when (item) {
-                is ContentItem.Image -> editorImageThumbnail(item, onImageClick, onRemove)
+                is ContentItem.Image -> editorImageThumbnail(item, onAttachmentClick, onRemove)
                 is ContentItem.File ->
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -248,7 +269,11 @@ private fun editorAttachmentsRow(
                         modifier =
                             Modifier
                                 .height(88.dp)
-                                .width(120.dp),
+                                .width(120.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { onAttachmentClick(item) },
                     ) {
                         Box(Modifier.fillMaxSize()) {
                             Text(
@@ -275,7 +300,11 @@ private fun editorAttachmentsRow(
                         modifier =
                             Modifier
                                 .height(88.dp)
-                                .width(120.dp),
+                                .width(120.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { onAttachmentClick(item) },
                     ) {
                         Box(Modifier.fillMaxSize()) {
                             Text(
@@ -304,7 +333,7 @@ private fun editorAttachmentsRow(
 @Composable
 private fun editorImageThumbnail(
     image: ContentItem.Image,
-    onImageClick: (ContentItem.Image) -> Unit,
+    onAttachmentClick: (ContentItem) -> Unit,
     onRemove: (ContentItem) -> Unit,
 ) {
     val context = LocalContext.current
@@ -322,7 +351,7 @@ private fun editorImageThumbnail(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                    ) { onImageClick(image) },
+                    ) { onAttachmentClick(image) },
         ) {
             if (model != null) {
                 AsyncImage(
@@ -353,16 +382,25 @@ private fun editorImageThumbnail(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun editorFullScreenImageViewer(
-    image: ContentItem.Image,
+private fun editorFullScreenAttachmentsViewer(
+    attachments: List<ContentItem>,
+    initialIndex: Int,
     onDismiss: () -> Unit,
 ) {
+    if (attachments.isEmpty()) return
+
     val context = LocalContext.current
-    val model =
-        remember(image.id, image.source.localPath, image.source.remoteUrl) {
-            imageDataForCoil(image.source)
-        }
+    val colors = MaterialTheme.colorScheme
+    val overlayBackground = colors.surface.copy(alpha = 0.88f)
+    val safeInitialIndex = initialIndex.coerceIn(0, attachments.lastIndex)
+    val pagerState =
+        rememberPagerState(
+            initialPage = safeInitialIndex,
+            pageCount = { attachments.size },
+        )
+
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -371,34 +409,121 @@ private fun editorFullScreenImageViewer(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        val dismissInteractionSource = remember { MutableInteractionSource() }
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(overlayBackground)
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = dismissInteractionSource,
                         indication = null,
                     ) { onDismiss() },
         ) {
-            if (model != null) {
-                AsyncImage(
-                    model =
-                        ImageRequest.Builder(context)
-                            .data(model)
-                            .crossfade(false)
-                            .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
+            HorizontalPager(
+                state = pagerState,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp, vertical = 48.dp),
+            ) { page ->
+                when (val item = attachments[page]) {
+                    is ContentItem.Image -> {
+                        val model =
+                            remember(item.id, item.source.localPath, item.source.remoteUrl) {
+                                imageDataForCoil(item.source)
+                            }
+                        BoxWithConstraints(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember(page) { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { onDismiss() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (model != null) {
+                                val absorbImageTap = remember(item.id) { MutableInteractionSource() }
+                                AsyncImage(
+                                    model =
+                                        ImageRequest.Builder(context)
+                                            .data(model)
+                                            .crossfade(false)
+                                            .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier =
+                                        Modifier
+                                            .sizeIn(maxWidth = maxWidth, maxHeight = maxHeight)
+                                            .wrapContentSize()
+                                            .clickable(
+                                                interactionSource = absorbImageTap,
+                                                indication = null,
+                                                onClick = {},
+                                            ),
+                                )
+                            }
+                        }
+                    }
+                    is ContentItem.File ->
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember(page) { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { onDismiss() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = item.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colors.onSurface,
+                                modifier =
+                                    Modifier.clickable(
+                                        interactionSource = remember(item.id) { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {},
+                                    ),
+                            )
+                        }
+                    is ContentItem.Link ->
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember(page) { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { onDismiss() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = item.title ?: item.url,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colors.onSurface,
+                                modifier =
+                                    Modifier.clickable(
+                                        interactionSource = remember(item.id) { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {},
+                                    ),
+                            )
+                        }
+                    is ContentItem.Text -> { }
+                }
+            }
+            if (attachments.size > 1) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${attachments.size}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.onSurfaceVariant,
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp, vertical = 48.dp)
-                            .align(Alignment.Center)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { onDismiss() },
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 24.dp),
                 )
             }
             IconButton(
@@ -406,12 +531,12 @@ private fun editorFullScreenImageViewer(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp),
+                        .padding(top = 20.dp, end = 8.dp),
             ) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = colors.onSurface,
                 )
             }
         }
