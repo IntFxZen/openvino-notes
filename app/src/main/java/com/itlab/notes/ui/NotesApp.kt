@@ -60,6 +60,7 @@ fun notesApp() {
         is NotesUiScreen.NoteEditor -> {
             editorScreen(
                 directoryName = screen.directory.name,
+                directoryId = screen.directory.id,
                 note = screen.note,
                 onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectoryNotes) },
                 onSave = { updated ->

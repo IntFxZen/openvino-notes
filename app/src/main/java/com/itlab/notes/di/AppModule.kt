@@ -11,6 +11,7 @@ import com.itlab.domain.usecase.noteusecase.MoveNoteToFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesByFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
+import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -18,11 +19,12 @@ import org.koin.dsl.module
 
 val appModule =
     module {
-        factory { CreateNoteUseCase(get()) }
+        factory { ValidateDuplicateNoteTitleUseCase(get()) }
+        factory { CreateNoteUseCase(get(), get()) }
         factory { CreateFolderUseCase(get()) }
         factory { DeleteFolderUseCase(get(), get()) }
         factory { DeleteNoteUseCase(get()) }
-        factory { UpdateNoteUseCase(get()) }
+        factory { UpdateNoteUseCase(get(), get()) }
         factory { UpdateFolderUseCase(get()) }
         factory { GetFolderUseCase(get()) }
         factory { ObserveNotesByFolderUseCase(get()) }
