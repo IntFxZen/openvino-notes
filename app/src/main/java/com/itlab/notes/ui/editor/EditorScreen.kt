@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,7 +26,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -43,12 +47,14 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -59,9 +65,13 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.itlab.domain.model.ContentItem
 import com.itlab.domain.model.DataSource
+import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
+import com.itlab.notes.media.ImageRegionLuminance
 import com.itlab.notes.media.NoteMediaImport
+import com.itlab.notes.ui.asDomainFolderId
 import com.itlab.notes.ui.notes.NoteItemUi
 import java.io.File
+import org.koin.compose.koinInject
 
 private data class EditorAttachmentsViewerState(
     val attachments: List<ContentItem>,
@@ -72,14 +82,29 @@ private data class EditorAttachmentsViewerState(
 @Composable
 fun editorScreen(
     directoryName: String,
+    directoryId: String,
     note: NoteItemUi,
     onBack: () -> Unit,
     onSave: (NoteItemUi) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
+    val validateDuplicateTitle: ValidateDuplicateNoteTitleUseCase = koinInject()
     val editorVm = remember(note.id) { EditorViewModel(initialNote = note) }
     var attachmentsViewer by remember { mutableStateOf<EditorAttachmentsViewerState?>(null) }
+    val targetFolderId = note.folderId ?: directoryId.asDomainFolderId()
+    var titleDuplicate by remember { mutableStateOf(false) }
+    val trimmedTitle = editorVm.title.trim()
+    val titleHasDuplicate = titleDuplicate && trimmedTitle.isNotEmpty()
+
+    LaunchedEffect(editorVm.title, targetFolderId, note.id) {
+        titleDuplicate =
+            validateDuplicateTitle(
+                title = editorVm.title,
+                folderId = targetFolderId,
+                excludeNoteId = note.id,
+            )
+    }
 
     val pickImages =
         rememberLauncherForActivityResult(
@@ -107,11 +132,13 @@ fun editorScreen(
         floatingActionButton = {
             editorFab(
                 onClick = { onSave(editorVm.buildUpdatedNote()) },
+                enabled = !titleHasDuplicate,
             )
         },
     ) { paddingValues ->
         editorContent(
             title = editorVm.title,
+            titleHasDuplicate = titleHasDuplicate,
             content = editorVm.content,
             attachments = editorVm.attachments,
             onTitleChange = editorVm::onTitleChange,
@@ -191,10 +218,14 @@ private fun editorTopBar(
 }
 
 @Composable
-private fun editorFab(onClick: () -> Unit) {
+private fun editorFab(
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
     val colors = MaterialTheme.colorScheme
     FloatingActionButton(
-        onClick = onClick,
+        onClick = { if (enabled) onClick() },
+        modifier = Modifier.alpha(if (enabled) 1f else 0.4f),
         containerColor = colors.primary,
     ) {
         Icon(
@@ -208,6 +239,7 @@ private fun editorFab(onClick: () -> Unit) {
 @Composable
 private fun editorContent(
     title: String,
+    titleHasDuplicate: Boolean,
     content: String,
     attachments: List<ContentItem>,
     onTitleChange: (String) -> Unit,
@@ -216,16 +248,26 @@ private fun editorContent(
     onRemoveAttachment: (ContentItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollState = rememberScrollState()
     Column(
         modifier =
             modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         editorTitleField(
             value = title,
             onValueChange = onTitleChange,
         )
+        if (titleHasDuplicate) {
+            Text(
+                text = "A note with that name already exists.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
 
         editorContentField(
             value = content,
@@ -241,6 +283,8 @@ private fun editorContent(
                 modifier = Modifier.padding(top = 12.dp),
             )
         }
+
+        Spacer(modifier = Modifier.height(88.dp))
     }
 }
 
@@ -341,6 +385,7 @@ private fun editorImageThumbnail(
         remember(image.id, image.source.localPath, image.source.remoteUrl) {
             imageDataForCoil(image.source)
         }
+    var closeIconTint by remember(image.id) { mutableStateOf(Color.White) }
     Box {
         Surface(
             shape = RoundedCornerShape(8.dp),
@@ -359,10 +404,16 @@ private fun editorImageThumbnail(
                         ImageRequest.Builder(context)
                             .data(model)
                             .crossfade(true)
+                            .allowHardware(false)
                             .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                    onSuccess = { state ->
+                        val isLightRegion =
+                            ImageRegionLuminance.isTopEndRegionLight(state.result.drawable)
+                        closeIconTint = if (isLightRegion) Color.Black else Color.White
+                    },
                 )
             }
         }
@@ -376,7 +427,7 @@ private fun editorImageThumbnail(
             Icon(
                 Icons.Default.Close,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = closeIconTint,
             )
         }
     }

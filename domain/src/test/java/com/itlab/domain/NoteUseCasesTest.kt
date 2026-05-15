@@ -18,6 +18,7 @@ import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
+import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -82,8 +83,9 @@ class NoteUseCasesTest {
         runBlocking {
             val repo = FakeNotesRepo()
 
-            val create = CreateNoteUseCase(repo)
-            val update = UpdateNoteUseCase(repo)
+            val validateTitle = ValidateDuplicateNoteTitleUseCase(repo)
+            val create = CreateNoteUseCase(repo, validateTitle)
+            val update = UpdateNoteUseCase(repo, validateTitle)
             val delete = DeleteNoteUseCase(repo)
             val get = GetNoteUseCase(repo)
 
@@ -112,7 +114,7 @@ class NoteUseCasesTest {
             val folderRepo = FakeFolderRepo()
 
             val move = MoveNoteToFolderUseCase(notesRepo, folderRepo)
-            val createNote = CreateNoteUseCase(notesRepo)
+            val createNote = CreateNoteUseCase(notesRepo, ValidateDuplicateNoteTitleUseCase(notesRepo))
 
             val folder = NoteFolder(id = "f1", name = "Folder")
             folderRepo.createFolder(folder)
@@ -132,7 +134,7 @@ class NoteUseCasesTest {
         runBlocking {
             val repo = FakeNotesRepo()
             val observe = ObserveNotesUseCase(repo)
-            val create = CreateNoteUseCase(repo)
+            val create = CreateNoteUseCase(repo, ValidateDuplicateNoteTitleUseCase(repo))
 
             create(Note(id = "n1", title = "Test", userId = testUserId)).getOrThrow()
 
