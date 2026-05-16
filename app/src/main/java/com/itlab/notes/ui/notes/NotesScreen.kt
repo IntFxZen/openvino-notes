@@ -21,13 +21,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.CompareArrows
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderCopy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -182,9 +182,9 @@ private fun notesTopBar(
                 Icon(
                     imageVector =
                         if (selectedCount > 0) {
-                            Icons.Default.Close
+                            Icons.Rounded.Close
                         } else {
-                            Icons.AutoMirrored.Filled.ArrowBack
+                            Icons.AutoMirrored.Rounded.ArrowBack
                         },
                     contentDescription = null,
                     tint = colors.onSurface,
@@ -195,14 +195,14 @@ private fun notesTopBar(
             if (selectedCount > 0) {
                 IconButton(onClick = onMoveSelected) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.CompareArrows,
+                        imageVector = Icons.AutoMirrored.Rounded.CompareArrows,
                         contentDescription = null,
                         tint = colors.onSurface,
                     )
                 }
                 IconButton(onClick = onDeleteSelected) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = Icons.Rounded.Delete,
                         contentDescription = null,
                         tint = colors.onSurface,
                     )
@@ -235,7 +235,7 @@ private fun notesMoveNotesDialog(
         onDismissRequest = onDismissRequest,
         slots =
             UniversalBasicAlertDialogSlots(
-                icon = Icons.AutoMirrored.Filled.CompareArrows,
+                icon = Icons.AutoMirrored.Rounded.CompareArrows,
                 iconContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 iconTintColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = {
@@ -326,7 +326,7 @@ private fun notesMoveTargetRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Default.Folder,
+            imageVector = Icons.Rounded.Folder,
             contentDescription = null,
             tint = colors.onSurfaceVariant,
             modifier = Modifier.size(25.dp),
@@ -372,7 +372,7 @@ private fun notesDeleteConfirmationDialog(
         onDismissRequest = onDismissRequest,
         slots =
             UniversalBasicAlertDialogSlots(
-                icon = Icons.Default.Delete,
+                icon = Icons.Rounded.Delete,
                 iconContainerColor = MaterialTheme.colorScheme.errorContainer,
                 iconTintColor = MaterialTheme.colorScheme.onErrorContainer,
                 title = {
@@ -419,7 +419,7 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
         containerColor = colors.primary,
     ) {
         Icon(
-            Icons.Default.Add,
+            Icons.Rounded.Add,
             contentDescription = null,
             tint = colors.onPrimary,
         )
@@ -535,6 +535,9 @@ private fun noteCard(
                         colors.onSurface
                     },
                 style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
             Text(

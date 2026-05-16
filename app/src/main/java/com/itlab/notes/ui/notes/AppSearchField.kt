@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -130,7 +130,7 @@ private fun appSearchFieldDecorationBox(
 @Composable
 private fun appSearchFieldLeadingIcon(isFocused: Boolean) {
     Icon(
-        imageVector = Icons.Default.Search,
+        imageVector = Icons.Rounded.Search,
         contentDescription = null,
         tint =
             if (isFocused) {
@@ -153,7 +153,7 @@ private fun appSearchFieldTrailingIcon(
     if (isFocused) {
         IconButton(onClick = onClearClick) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

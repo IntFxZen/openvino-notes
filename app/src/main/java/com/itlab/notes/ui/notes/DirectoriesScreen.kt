@@ -28,16 +28,13 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTimeFilled
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AllInbox
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AllInbox
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderCopy
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -294,7 +291,7 @@ private fun directoriesTopBar(onAddDirectoryClick: () -> Unit) {
         actions = {
             IconButton(onClick = onAddDirectoryClick) {
                 Icon(
-                    Icons.Default.Add,
+                    Icons.Rounded.Add,
                     contentDescription = null,
                     tint = colors.onSurface,
                 )
@@ -447,7 +444,7 @@ private fun directoriesHeroPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Default.FolderCopy,
+                imageVector = Icons.Rounded.FolderCopy,
                 contentDescription = null,
                 tint = colors.primary,
                 modifier = Modifier.size(25.dp),
@@ -596,9 +593,9 @@ private fun directoryRow(
         Icon(
             imageVector =
                 when {
-                    directory.id == RECENT_DIRECTORY_ID -> Icons.Default.AccessTimeFilled
-                    isAllNotes -> Icons.Default.AllInbox
-                    else -> Icons.Default.Folder
+                    directory.id == RECENT_DIRECTORY_ID -> Icons.Rounded.Schedule
+                    isAllNotes -> Icons.Rounded.AllInbox
+                    else -> Icons.Rounded.Folder
                 },
             contentDescription = null,
             tint = if (isAllNotes) colors.primary else colors.onSurfaceVariant,
@@ -624,7 +621,7 @@ private fun directoryRow(
         }
         Spacer(Modifier.width(5.dp))
         Icon(
-            Icons.Default.ChevronRight,
+            Icons.Rounded.ChevronRight,
             contentDescription = null,
             tint = colors.onSurfaceVariant,
         )
