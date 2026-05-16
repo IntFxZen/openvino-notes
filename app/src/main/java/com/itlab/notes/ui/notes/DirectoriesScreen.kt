@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AllInbox
@@ -74,7 +75,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
+import com.itlab.notes.ui.toSingleLineText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -707,7 +711,7 @@ private fun directoryRenameDialog(
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var renameName by remember(directory.id) { mutableStateOf(directory.name) }
+    var renameName by remember(directory.id) { mutableStateOf(directory.name.toSingleLineText()) }
     val trimmedName = renameName.trim()
     val nameAlreadyExists =
         trimmedName.isNotEmpty() &&
@@ -798,7 +802,9 @@ private fun directoryOutlinedTextField(
 
     BasicTextField(
         value = value,
-        onValueChange = { newValue -> onValueChange(newValue.coerceDirectoryNameLength()) },
+        onValueChange = { newValue ->
+            onValueChange(newValue.toSingleLineText().coerceDirectoryNameLength())
+        },
         modifier =
             modifier
                 .fillMaxWidth()
@@ -812,6 +818,12 @@ private fun directoryOutlinedTextField(
         enabled = enabled,
         textStyle = textStyle,
         singleLine = true,
+        maxLines = 1,
+        keyboardOptions =
+            KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done,
+            ),
         cursorBrush = SolidColor(scheme.primary),
         interactionSource = interactionSource,
         decorationBox = { innerTextField ->

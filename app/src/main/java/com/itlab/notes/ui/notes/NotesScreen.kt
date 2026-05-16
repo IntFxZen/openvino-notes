@@ -110,7 +110,7 @@ fun notesListScreen(
             )
         },
         floatingActionButton = {
-            if (!isSelectionMode) {
+            if (!isSelectionMode && canCreateNotesInDirectory(directoryId)) {
                 notesFab(onAddNoteClick = actions.onAddNoteClick)
             }
         },
