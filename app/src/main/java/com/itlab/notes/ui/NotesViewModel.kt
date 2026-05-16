@@ -205,7 +205,8 @@ class NotesViewModel(
         val dir = (uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory ?: return
         if (!canCreateNotesInDirectory(dir.id)) return
         notesJob?.cancel()
-        val newNote = Note(folderId = dir.id.asDomainFolderId()).toUi()
+        val userId = useCases.getUserIdUseCase() ?: "local_user"
+        val newNote = Note(userId = userId, folderId = dir.id.asDomainFolderId()).toUi()
         uiState =
             uiState.copy(
                 screen = NotesUiScreen.NoteEditor(directory = dir, note = newNote),
@@ -330,6 +331,7 @@ internal fun NoteFolder.toUi(noteCount: Int): DirectoryItemUi =
 internal fun Note.toUi(): NoteItemUi =
     NoteItemUi(
         id = id,
+        userId = userId,
         title = title,
         content =
             contentItems
@@ -342,12 +344,13 @@ internal fun Note.toUi(): NoteItemUi =
 
 internal fun NoteItemUi.toContentItems(): List<ContentItem> =
     buildList {
-        if (content.isNotBlank()) add(ContentItem.Text(content))
+        if (content.isNotBlank()) add(ContentItem.Text(text = content))
         addAll(attachments.withoutTextItems())
     }
 
 internal fun NoteItemUi.toDomain(folderId: String?): Note =
     Note(
+        userId = userId,
         id = id,
         title = title,
         folderId = folderId,

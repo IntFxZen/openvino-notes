@@ -18,7 +18,7 @@ import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 val appModule =
@@ -61,9 +61,5 @@ val appModule =
             )
         }
 
-        viewModel {
-            NotesViewModel(
-                useCases = get(),
-            )
-        }
+        viewModelOf(::NotesViewModel)
     }
