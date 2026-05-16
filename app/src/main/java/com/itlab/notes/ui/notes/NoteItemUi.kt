@@ -4,6 +4,7 @@ import com.itlab.domain.model.ContentItem
 
 data class NoteItemUi(
     val id: String,
+    val userId: String,
     val title: String,
     val content: String,
     val folderId: String? = null,
