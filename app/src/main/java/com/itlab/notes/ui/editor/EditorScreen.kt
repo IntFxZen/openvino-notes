@@ -4,6 +4,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,9 +40,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +69,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -73,10 +86,28 @@ import com.itlab.notes.ui.notes.NoteItemUi
 import java.io.File
 import org.koin.compose.koinInject
 
+private const val EDITOR_TOP_BAR_TITLE_MAX_LENGTH = 35
+
 private data class EditorAttachmentsViewerState(
     val attachments: List<ContentItem>,
     val initialIndex: Int,
 )
+
+private fun String.truncateForEditorTopBar(): String =
+    if (length <= EDITOR_TOP_BAR_TITLE_MAX_LENGTH) {
+        this
+    } else {
+        take(EDITOR_TOP_BAR_TITLE_MAX_LENGTH - 1) + "…"
+    }
+
+/** Set to `false` after layout review; wire [editorAiTagsBar] / [editorCollapsibleSummaryCard] to real AI data. */
+private const val EDITOR_AI_UI_PREVIEW = true
+
+private val editorAiPreviewSummary =
+    "This note is about planning the product launch: goals for the week, " +
+        "open questions for the team, and a short list of next steps."
+private val editorAiPreviewTags =
+    listOf("Work", "Planning", "Product", "Follow-up", "Study", "Study","Study",)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,31 +167,51 @@ fun editorScreen(
             )
         },
     ) { paddingValues ->
-        editorContent(
-            title = editorVm.title,
-            titleHasDuplicate = titleHasDuplicate,
-            content = editorVm.content,
-            attachments = editorVm.attachments,
-            onTitleChange = editorVm::onTitleChange,
-            onContentChange = editorVm::onContentChange,
-            onAttachmentClick = { item ->
-                val index = editorVm.attachments.indexOfFirst { it.id == item.id }
-                if (index >= 0) {
-                    attachmentsViewer =
-                        EditorAttachmentsViewerState(
-                            attachments = editorVm.attachments,
-                            initialIndex = index,
-                        )
-                }
-            },
-            onRemoveAttachment = { item ->
-                if (item is ContentItem.Image) {
-                    NoteMediaImport.deleteImportedFileIfOwned(context, item.source.localPath)
-                }
-                editorVm.removeAttachment(item.id)
-            },
-            modifier = Modifier.padding(paddingValues),
-        )
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+        ) {
+            if (EDITOR_AI_UI_PREVIEW && editorAiPreviewTags.isNotEmpty()) {
+                editorAiTagsBar(
+                    tags = editorAiPreviewTags,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            editorContent(
+                title = editorVm.title,
+                titleHasDuplicate = titleHasDuplicate,
+                content = editorVm.content,
+                attachments = editorVm.attachments,
+                aiSummary = if (EDITOR_AI_UI_PREVIEW) editorAiPreviewSummary else null,
+                onTitleChange = editorVm::onTitleChange,
+                onContentChange = editorVm::onContentChange,
+                onAttachmentClick = { item ->
+                    val index = editorVm.attachments.indexOfFirst { it.id == item.id }
+                    if (index >= 0) {
+                        attachmentsViewer =
+                            EditorAttachmentsViewerState(
+                                attachments = editorVm.attachments,
+                                initialIndex = index,
+                            )
+                    }
+                },
+                onRemoveAttachment = { item ->
+                    if (item is ContentItem.Image) {
+                        NoteMediaImport.deleteImportedFileIfOwned(context, item.source.localPath)
+                    }
+                    editorVm.removeAttachment(item.id)
+                },
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+            )
+        }
     }
 
     attachmentsViewer?.let { viewer ->
@@ -181,11 +232,17 @@ private fun editorTopBar(
     onAddImage: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val topBarTitle =
+        (if (title.isBlank()) directoryName else title).truncateForEditorTopBar()
     CenterAlignedTopAppBar(
         title = {
             Text(
-                text = if (title.isBlank()) directoryName else title,
+                text = topBarTitle,
                 color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         },
         navigationIcon = {
@@ -242,6 +299,7 @@ private fun editorContent(
     titleHasDuplicate: Boolean,
     content: String,
     attachments: List<ContentItem>,
+    aiSummary: String?,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
     onAttachmentClick: (ContentItem) -> Unit,
@@ -256,6 +314,13 @@ private fun editorContent(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
+        if (!aiSummary.isNullOrBlank()) {
+            editorCollapsibleSummaryCard(
+                summary = aiSummary,
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+        }
+
         editorTitleField(
             value = title,
             onValueChange = onTitleChange,
@@ -600,6 +665,115 @@ private fun imageDataForCoil(source: DataSource): Any? =
         !source.remoteUrl.isNullOrBlank() -> source.remoteUrl!!
         else -> null
     }
+
+@Composable
+private fun editorAiTagsBar(
+    tags: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 0.dp),
+    ) {
+        itemsIndexed(
+            items = tags,
+            key = { index, tag -> "$index-$tag" },
+        ) { _, tag ->
+            FilterChip(
+                selected = true,
+                onClick = { },
+                label = {
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                },
+                shape = MaterialTheme.shapes.extraLarge,
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        containerColor = colors.surfaceContainerHigh,
+                        labelColor = colors.onSurface,
+                        iconColor = colors.onSurface,
+                        selectedContainerColor = colors.secondaryContainer,
+                        selectedLabelColor = colors.onSecondaryContainer,
+                        selectedLeadingIconColor = colors.onSecondaryContainer,
+                    ),
+                border =
+                    FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = true,
+                        borderColor = colors.outline.copy(alpha = 0.35f),
+                        selectedBorderColor = Color.Transparent,
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun editorCollapsibleSummaryCard(
+    summary: String,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(true) }
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
+        color = colors.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { expanded = !expanded }
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "AI Summary",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colors.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription =
+                        if (expanded) {
+                            "Collapse summary"
+                        } else {
+                            "Expand summary"
+                        },
+                    tint = colors.onSurfaceVariant,
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurface,
+                    modifier =
+                        Modifier.padding(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = 14.dp,
+                        ),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun editorTitleField(
