@@ -1,5 +1,6 @@
 package com.itlab.notes.ui.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -87,12 +88,15 @@ fun notesListScreen(
         clearSelection()
     }
     val handleBack = {
-        if (isSelectionMode) {
-            clearSelection()
-        } else {
-            actions.onBack()
+        when {
+            showDeleteDialog -> showDeleteDialog = false
+            showMoveDialog -> showMoveDialog = false
+            isSelectionMode -> clearSelection()
+            else -> actions.onBack()
         }
     }
+
+    BackHandler(onBack = handleBack)
 
     Scaffold(
         containerColor = colors.background,
@@ -175,6 +179,9 @@ private fun notesTopBar(
             Text(
                 text = if (selectedCount > 0) "$selectedCount selected" else directoryName,
                 color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
             )
         },
         navigationIcon = {
@@ -337,6 +344,8 @@ private fun notesMoveTargetRow(
             color = colors.onSurface,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -447,10 +456,26 @@ private fun notesListContent(
             onQueryChange = onSearchQueryChange,
         )
 
+        val isSearchActive = searchQuery.isNotBlank()
+
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(top = 4.dp),
         ) {
+            if (notes.isEmpty() && isSearchActive) {
+                item {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 80.dp)
+                                .heightIn(min = 220.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        notesSearchEmptyState()
+                    }
+                }
+            }
             items(
                 items = notes,
                 key = { note -> note.id },
