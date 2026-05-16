@@ -39,6 +39,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -83,6 +84,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import kotlin.math.roundToInt
@@ -100,6 +103,7 @@ import com.itlab.notes.media.NoteMediaImport
 import com.itlab.notes.media.imageAttachments
 import com.itlab.notes.media.toCoilModel
 import com.itlab.notes.ui.asDomainFolderId
+import com.itlab.notes.ui.toSingleLineText
 import com.itlab.notes.ui.notes.NoteItemUi
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
@@ -815,18 +819,31 @@ private fun editorPlainTextField(
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
     singleLine: Boolean = false,
     minLines: Int = 1,
+    stripLineBreaks: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
 
     BasicTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { newValue ->
+            onValueChange(if (stripLineBreaks) newValue.toSingleLineText() else newValue)
+        },
         modifier = modifier.fillMaxWidth(),
         textStyle = textStyle.copy(color = colors.onSurface),
         cursorBrush = SolidColor(colors.primary),
         singleLine = singleLine,
+        maxLines = if (singleLine) 1 else Int.MAX_VALUE,
         minLines = if (singleLine) 1 else minLines,
+        keyboardOptions =
+            if (singleLine) {
+                KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Next,
+                )
+            } else {
+                KeyboardOptions.Default
+            },
         interactionSource = interactionSource,
         decorationBox = { innerTextField ->
             editorPlainTextFieldDecoration(
@@ -954,6 +971,7 @@ private fun editorTitleField(
         onValueChange = onValueChange,
         placeholder = "Title",
         singleLine = true,
+        stripLineBreaks = true,
         textStyle = MaterialTheme.typography.titleLarge,
     )
 }
