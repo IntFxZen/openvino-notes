@@ -30,10 +30,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AllInbox
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.TextFields
@@ -330,18 +332,14 @@ private fun directoriesList(
     var pendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
     val focusManager = LocalFocusManager.current
 
-    val sectionData =
-        remember(directories) {
-            val favIds = setOf("all")
-            val total =
-                directories.firstOrNull { it.id == "all" }?.noteCount ?: directories.sumOf { it.noteCount }
-            val favs = directories.filter { it.id in favIds }
-            val regs = directories.filterNot { it.id in favIds }
-            val recent = DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = total)
-            Triple(favs, regs, recent)
-        }
-    val totalNotesCount = sectionData.third.noteCount
     val allNotesDirectory = remember(directories) { directories.firstOrNull { it.id == "all" } }
+    val regularDirectories = remember(directories) { directories.filter { it.id != "all" } }
+    val totalNotesCount =
+        allNotesDirectory?.noteCount ?: directories.sumOf { it.noteCount }
+    val recentDirectory =
+        remember(totalNotesCount) {
+            DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = totalNotesCount)
+        }
 
     Column(
         modifier = modifier.fillMaxSize().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
@@ -357,14 +355,12 @@ private fun directoriesList(
             fun LazyListScope.addSection(
                 title: String,
                 dirs: List<DirectoryItemUi>,
-                isRegularBlock: Boolean,
             ) {
                 if (dirs.isEmpty()) return
                 item { sectionTitle(title = title) }
                 item {
                     directoriesBlock(
                         directories = dirs,
-                        isRegularDirectoriesBlock = isRegularBlock,
                         onDirectoryClick = onDirectoryClick,
                         onDirectoryLongClick = { pendingDelete = it },
                     )
@@ -373,15 +369,17 @@ private fun directoriesList(
 
             item {
                 directoriesHeroPanel(
-                    directoriesCount = directories.count { it.id != "all" },
+                    directoriesCount = regularDirectories.size,
                     totalNotesCount = totalNotesCount,
                 )
             }
-            addSection("Continue working", listOf(sectionData.third), true)
-            addSection("Favorite directories", sectionData.first, false)
-            addSection("Regular directories", sectionData.second, true)
+            allNotesDirectory?.let { allNotes ->
+                addSection("Everything", listOf(allNotes))
+            }
+            addSection("Continue working", listOf(recentDirectory))
+            addSection("Regular directories", regularDirectories)
 
-            if (sectionData.second.isEmpty()) {
+            if (regularDirectories.isEmpty()) {
                 item {
                     Box(
                         modifier =
@@ -526,7 +524,6 @@ private fun sectionTitle(title: String) {
 @Composable
 private fun directoriesBlock(
     directories: List<DirectoryItemUi>,
-    isRegularDirectoriesBlock: Boolean,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     onDirectoryLongClick: (DirectoryItemUi) -> Unit,
 ) {
@@ -540,7 +537,6 @@ private fun directoriesBlock(
             directories.forEachIndexed { index, dir ->
                 directoryRow(
                     directory = dir,
-                    isRegularDirectory = isRegularDirectoriesBlock,
                     onClick = {
                         onDirectoryClick(dir)
                     },
@@ -580,12 +576,12 @@ private fun isSpecialDirectory(directoryId: String): Boolean =
 @Composable
 private fun directoryRow(
     directory: DirectoryItemUi,
-    isRegularDirectory: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val isAllNotes = directory.id == "all"
     Row(
         modifier =
             modifier
@@ -601,11 +597,11 @@ private fun directoryRow(
             imageVector =
                 when {
                     directory.id == RECENT_DIRECTORY_ID -> Icons.Default.AccessTimeFilled
-                    isRegularDirectory -> Icons.Default.Folder
-                    else -> Icons.Default.Stars
+                    isAllNotes -> Icons.Default.AllInbox
+                    else -> Icons.Default.Folder
                 },
             contentDescription = null,
-            tint = if (isRegularDirectory) colors.onSurfaceVariant else colors.primary,
+            tint = if (isAllNotes) colors.primary else colors.onSurfaceVariant,
             modifier = Modifier.size(25.dp),
         )
         Spacer(Modifier.width(12.dp))
