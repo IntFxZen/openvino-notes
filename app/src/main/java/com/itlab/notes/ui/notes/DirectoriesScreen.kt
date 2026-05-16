@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderCopy
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -74,8 +75,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-
-private const val RECENT_DIRECTORY_ID = "recent"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -329,8 +328,13 @@ private fun directoriesList(
     var pendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
     val focusManager = LocalFocusManager.current
 
-    val allNotesDirectory = remember(directories) { directories.firstOrNull { it.id == "all" } }
-    val regularDirectories = remember(directories) { directories.filter { it.id != "all" } }
+    val allNotesDirectory = remember(directories) { directories.firstOrNull { it.id == ALL_DIRECTORY_ID } }
+    val favoritesDirectory =
+        remember(directories) { directories.firstOrNull { it.id == FAVORITES_DIRECTORY_ID } }
+    val regularDirectories =
+        remember(directories) {
+            directories.filter { it.id != ALL_DIRECTORY_ID && it.id != FAVORITES_DIRECTORY_ID }
+        }
     val totalNotesCount =
         allNotesDirectory?.noteCount ?: directories.sumOf { it.noteCount }
     val recentDirectory =
@@ -372,6 +376,9 @@ private fun directoriesList(
             }
             allNotesDirectory?.let { allNotes ->
                 addSection("Everything", listOf(allNotes))
+            }
+            favoritesDirectory?.let { favorites ->
+                addSection("Favorites", listOf(favorites))
             }
             addSection("Continue working", listOf(recentDirectory))
             addSection("Regular directories", regularDirectories)
@@ -566,8 +573,7 @@ fun directorySearchBar(
     )
 }
 
-private fun isSpecialDirectory(directoryId: String): Boolean =
-    directoryId == "all" || directoryId == RECENT_DIRECTORY_ID
+private fun isSpecialDirectory(directoryId: String): Boolean = isVirtualDirectory(directoryId)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -578,7 +584,8 @@ private fun directoryRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    val isAllNotes = directory.id == "all"
+    val isAllNotes = directory.id == ALL_DIRECTORY_ID
+    val isFavorites = directory.id == FAVORITES_DIRECTORY_ID
     Row(
         modifier =
             modifier
@@ -594,11 +601,17 @@ private fun directoryRow(
             imageVector =
                 when {
                     directory.id == RECENT_DIRECTORY_ID -> Icons.Rounded.Schedule
+                    isFavorites -> Icons.Rounded.Star
                     isAllNotes -> Icons.Rounded.AllInbox
                     else -> Icons.Rounded.Folder
                 },
             contentDescription = null,
-            tint = if (isAllNotes) colors.primary else colors.onSurfaceVariant,
+            tint =
+                if (isAllNotes || isFavorites) {
+                    colors.primary
+                } else {
+                    colors.onSurfaceVariant
+                },
             modifier = Modifier.size(25.dp),
         )
         Spacer(Modifier.width(12.dp))

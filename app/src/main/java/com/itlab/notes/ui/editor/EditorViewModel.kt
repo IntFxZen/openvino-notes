@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.itlab.domain.model.ContentItem
+import com.itlab.notes.media.withoutTextItems
 import com.itlab.notes.ui.notes.NoteItemUi
 
 class EditorViewModel(
@@ -18,8 +19,15 @@ class EditorViewModel(
     var content: String by mutableStateOf(initialNote.content)
         private set
 
-    var attachments: List<ContentItem> by mutableStateOf(initialNote.attachments)
+    var attachments: List<ContentItem> by mutableStateOf(initialNote.attachments.withoutTextItems())
         private set
+
+    var isFavorite: Boolean by mutableStateOf(initialNote.isFavorite)
+        private set
+
+    fun syncFavoriteFromNote(value: Boolean) {
+        isFavorite = value
+    }
 
     fun onTitleChange(newTitle: String) {
         title = newTitle
@@ -49,5 +57,6 @@ class EditorViewModel(
             content = content,
             folderId = folderId,
             attachments = attachments,
+            isFavorite = isFavorite,
         )
 }

@@ -8,4 +8,5 @@ data class NoteItemUi(
     val content: String,
     val folderId: String? = null,
     val attachments: List<ContentItem> = emptyList(),
+    val isFavorite: Boolean = false,
 )

@@ -229,7 +229,7 @@ private fun notesMoveNotesDialog(
 ) {
     val moveTargets =
         remember(directories, currentDirectoryId) {
-            directories.filter { it.id != "all" && it.id != currentDirectoryId }
+            directories.filter { !isVirtualDirectory(it.id) && it.id != currentDirectoryId }
         }
     universalBasicAlertDialog(
         onDismissRequest = onDismissRequest,

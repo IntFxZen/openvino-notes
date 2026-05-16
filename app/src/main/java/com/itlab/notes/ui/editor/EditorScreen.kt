@@ -40,10 +40,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -80,13 +83,13 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.itlab.domain.model.ContentItem
-import com.itlab.domain.model.DataSource
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.media.ImageRegionLuminance
 import com.itlab.notes.media.NoteMediaImport
+import com.itlab.notes.media.imageAttachments
+import com.itlab.notes.media.toCoilModel
 import com.itlab.notes.ui.asDomainFolderId
 import com.itlab.notes.ui.notes.NoteItemUi
-import java.io.File
 import org.koin.compose.koinInject
 
 private const val EDITOR_TOP_BAR_TITLE_MAX_LENGTH = 35
@@ -95,7 +98,7 @@ private val EditorHorizontalGutter = 15.dp
 private val EditorHorizontalContentPadding = 15.dp
 
 private data class EditorAttachmentsViewerState(
-    val attachments: List<ContentItem>,
+    val images: List<ContentItem.Image>,
     val initialIndex: Int,
 )
 
@@ -117,6 +120,7 @@ fun editorScreen(
     note: NoteItemUi,
     onBack: () -> Unit,
     onSave: (NoteItemUi) -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -137,6 +141,10 @@ fun editorScreen(
             )
     }
 
+    LaunchedEffect(note.isFavorite) {
+        editorVm.syncFavoriteFromNote(note.isFavorite)
+    }
+
     val pickImages =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickMultipleVisualMedia(),
@@ -152,7 +160,9 @@ fun editorScreen(
             editorTopBar(
                 directoryName = directoryName,
                 title = editorVm.title,
+                isFavorite = note.isFavorite,
                 onBack = onBack,
+                onToggleFavorite = onToggleFavorite,
                 onAddImage = {
                     pickImages.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -191,11 +201,13 @@ fun editorScreen(
                 onTitleChange = editorVm::onTitleChange,
                 onContentChange = editorVm::onContentChange,
                 onAttachmentClick = { item ->
-                    val index = editorVm.attachments.indexOfFirst { it.id == item.id }
+                    if (item !is ContentItem.Image) return@editorContent
+                    val images = editorVm.attachments.imageAttachments()
+                    val index = images.indexOfFirst { it.id == item.id }
                     if (index >= 0) {
                         attachmentsViewer =
                             EditorAttachmentsViewerState(
-                                attachments = editorVm.attachments,
+                                images = images,
                                 initialIndex = index,
                             )
                     }
@@ -216,7 +228,7 @@ fun editorScreen(
 
     attachmentsViewer?.let { viewer ->
         editorFullScreenAttachmentsViewer(
-            attachments = viewer.attachments,
+            images = viewer.images,
             initialIndex = viewer.initialIndex,
             onDismiss = { attachmentsViewer = null },
         )
@@ -228,7 +240,9 @@ fun editorScreen(
 private fun editorTopBar(
     directoryName: String,
     title: String,
+    isFavorite: Boolean,
     onBack: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onAddImage: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -255,6 +269,18 @@ private fun editorTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                    contentDescription =
+                        if (isFavorite) {
+                            "Remove from favorites"
+                        } else {
+                            "Add to favorites"
+                        },
+                    tint = if (isFavorite) colors.primary else colors.onSurface,
+                )
+            }
             IconButton(onClick = onAddImage) {
                 Icon(
                     Icons.Rounded.AddPhotoAlternate,
@@ -445,9 +471,10 @@ private fun editorImageThumbnail(
     onRemove: (ContentItem) -> Unit,
 ) {
     val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
     val model =
         remember(image.id, image.source.localPath, image.source.remoteUrl) {
-            imageDataForCoil(image.source)
+            image.source.toCoilModel()
         }
     var closeIconTint by remember(image.id) { mutableStateOf(Color.White) }
     Box {
@@ -478,7 +505,19 @@ private fun editorImageThumbnail(
                             ImageRegionLuminance.isTopEndRegionLight(state.result.drawable)
                         closeIconTint = if (isLightRegion) Color.Black else Color.White
                     },
+                    onError = { closeIconTint = colors.onSurfaceVariant },
                 )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.BrokenImage,
+                        contentDescription = null,
+                        tint = colors.onSurfaceVariant,
+                    )
+                }
             }
         }
         IconButton(
@@ -500,20 +539,20 @@ private fun editorImageThumbnail(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun editorFullScreenAttachmentsViewer(
-    attachments: List<ContentItem>,
+    images: List<ContentItem.Image>,
     initialIndex: Int,
     onDismiss: () -> Unit,
 ) {
-    if (attachments.isEmpty()) return
+    if (images.isEmpty()) return
 
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
     val overlayBackground = colors.surface.copy(alpha = 0.88f)
-    val safeInitialIndex = initialIndex.coerceIn(0, attachments.lastIndex)
+    val safeInitialIndex = initialIndex.coerceIn(0, images.lastIndex)
     val pagerState =
         rememberPagerState(
             initialPage = safeInitialIndex,
-            pageCount = { attachments.size },
+            pageCount = { images.size },
         )
 
     Dialog(
@@ -542,97 +581,55 @@ private fun editorFullScreenAttachmentsViewer(
                         .fillMaxSize()
                         .padding(horizontal = 8.dp, vertical = 48.dp),
             ) { page ->
-                when (val item = attachments[page]) {
-                    is ContentItem.Image -> {
-                        val model =
-                            remember(item.id, item.source.localPath, item.source.remoteUrl) {
-                                imageDataForCoil(item.source)
-                            }
-                        BoxWithConstraints(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .clickable(
-                                        interactionSource = remember(page) { MutableInteractionSource() },
-                                        indication = null,
-                                    ) { onDismiss() },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (model != null) {
-                                val absorbImageTap = remember(item.id) { MutableInteractionSource() }
-                                AsyncImage(
-                                    model =
-                                        ImageRequest.Builder(context)
-                                            .data(model)
-                                            .crossfade(false)
-                                            .build(),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier =
-                                        Modifier
-                                            .sizeIn(maxWidth = maxWidth, maxHeight = maxHeight)
-                                            .wrapContentSize()
-                                            .clickable(
-                                                interactionSource = absorbImageTap,
-                                                indication = null,
-                                                onClick = {},
-                                            ),
-                                )
-                            }
-                        }
+                val item = images[page]
+                val model =
+                    remember(item.id, item.source.localPath, item.source.remoteUrl) {
+                        item.source.toCoilModel()
                     }
-                    is ContentItem.File ->
-                        Box(
+                BoxWithConstraints(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember(page) { MutableInteractionSource() },
+                                indication = null,
+                            ) { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (model != null) {
+                        val absorbImageTap = remember(item.id) { MutableInteractionSource() }
+                        AsyncImage(
+                            model =
+                                ImageRequest.Builder(context)
+                                    .data(model)
+                                    .crossfade(false)
+                                    .allowHardware(false)
+                                    .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
                             modifier =
                                 Modifier
-                                    .fillMaxSize()
+                                    .sizeIn(maxWidth = maxWidth, maxHeight = maxHeight)
+                                    .wrapContentSize()
                                     .clickable(
-                                        interactionSource = remember(page) { MutableInteractionSource() },
-                                        indication = null,
-                                    ) { onDismiss() },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = item.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = colors.onSurface,
-                                modifier =
-                                    Modifier.clickable(
-                                        interactionSource = remember(item.id) { MutableInteractionSource() },
+                                        interactionSource = absorbImageTap,
                                         indication = null,
                                         onClick = {},
                                     ),
-                            )
-                        }
-                    is ContentItem.Link ->
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .clickable(
-                                        interactionSource = remember(page) { MutableInteractionSource() },
-                                        indication = null,
-                                    ) { onDismiss() },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = item.title ?: item.url,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = colors.onSurface,
-                                modifier =
-                                    Modifier.clickable(
-                                        interactionSource = remember(item.id) { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = {},
-                                    ),
-                            )
-                        }
-                    is ContentItem.Text -> { }
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.BrokenImage,
+                            contentDescription = null,
+                            tint = colors.onSurfaceVariant,
+                            modifier = Modifier.size(48.dp),
+                        )
+                    }
                 }
             }
-            if (attachments.size > 1) {
+            if (images.size > 1) {
                 Text(
-                    text = "${pagerState.currentPage + 1} / ${attachments.size}",
+                    text = "${pagerState.currentPage + 1} / ${images.size}",
                     style = MaterialTheme.typography.labelLarge,
                     color = colors.onSurfaceVariant,
                     modifier =
@@ -657,13 +654,6 @@ private fun editorFullScreenAttachmentsViewer(
         }
     }
 }
-
-private fun imageDataForCoil(source: DataSource): Any? =
-    when {
-        !source.localPath.isNullOrBlank() -> File(source.localPath!!)
-        !source.remoteUrl.isNullOrBlank() -> source.remoteUrl!!
-        else -> null
-    }
 
 @Composable
 private fun editorAiTagsBar(
