@@ -35,14 +35,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -54,7 +55,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -67,8 +67,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,19 +91,16 @@ import org.koin.compose.koinInject
 
 private const val EDITOR_TOP_BAR_TITLE_MAX_LENGTH = 35
 
+private val EditorHorizontalGutter = 15.dp
+private val EditorHorizontalContentPadding = 15.dp
+
 private data class EditorAttachmentsViewerState(
     val attachments: List<ContentItem>,
     val initialIndex: Int,
 )
 
-private fun String.truncateForEditorTopBar(): String =
-    if (length <= EDITOR_TOP_BAR_TITLE_MAX_LENGTH) {
-        this
-    } else {
-        take(EDITOR_TOP_BAR_TITLE_MAX_LENGTH - 1) + "…"
-    }
+private fun String.truncateForEditorTopBar(): String = take(EDITOR_TOP_BAR_TITLE_MAX_LENGTH)
 
-/** Set to `false` after layout review; wire [editorAiTagsBar] / [editorCollapsibleSummaryCard] to real AI data. */
 private const val EDITOR_AI_UI_PREVIEW = true
 
 private val editorAiPreviewSummary =
@@ -179,7 +179,7 @@ fun editorScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = EditorHorizontalGutter, vertical = 8.dp),
                 )
             }
             editorContent(
@@ -242,13 +242,13 @@ private fun editorTopBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp),
             )
         },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
+                    Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = null,
                     tint = colors.onSurface,
                 )
@@ -257,7 +257,7 @@ private fun editorTopBar(
         actions = {
             IconButton(onClick = onAddImage) {
                 Icon(
-                    Icons.Default.Image,
+                    Icons.Rounded.AddPhotoAlternate,
                     contentDescription = "Add images",
                     tint = colors.onSurface,
                 )
@@ -286,7 +286,7 @@ private fun editorFab(
         containerColor = colors.primary,
     ) {
         Icon(
-            Icons.Default.Check,
+            Icons.Rounded.Check,
             contentDescription = null,
             tint = colors.onPrimary,
         )
@@ -312,7 +312,7 @@ private fun editorContent(
             modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = EditorHorizontalGutter, vertical = 12.dp),
     ) {
         if (!aiSummary.isNullOrBlank()) {
             editorCollapsibleSummaryCard(
@@ -330,7 +330,6 @@ private fun editorContent(
                 text = "A note with that name already exists.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 16.dp),
             )
         }
 
@@ -398,7 +397,7 @@ private fun editorAttachmentsRow(
                                 onClick = { onRemove(item) },
                                 modifier = Modifier.align(Alignment.TopEnd),
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = null)
+                                Icon(Icons.Rounded.Close, contentDescription = null)
                             }
                         }
                     }
@@ -429,7 +428,7 @@ private fun editorAttachmentsRow(
                                 onClick = { onRemove(item) },
                                 modifier = Modifier.align(Alignment.TopEnd),
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = null)
+                                Icon(Icons.Rounded.Close, contentDescription = null)
                             }
                         }
                     }
@@ -490,7 +489,7 @@ private fun editorImageThumbnail(
                     .size(28.dp),
         ) {
             Icon(
-                Icons.Default.Close,
+                Icons.Rounded.Close,
                 contentDescription = null,
                 tint = closeIconTint,
             )
@@ -650,7 +649,7 @@ private fun editorFullScreenAttachmentsViewer(
                         .padding(top = 20.dp, end = 8.dp),
             ) {
                 Icon(
-                    Icons.Default.Close,
+                    Icons.Rounded.Close,
                     contentDescription = null,
                     tint = colors.onSurface,
                 )
@@ -734,7 +733,7 @@ private fun editorCollapsibleSummaryCard(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) { expanded = !expanded }
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = EditorHorizontalContentPadding, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -744,7 +743,7 @@ private fun editorCollapsibleSummaryCard(
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                     contentDescription =
                         if (expanded) {
                             "Collapse summary"
@@ -765,8 +764,8 @@ private fun editorCollapsibleSummaryCard(
                     color = colors.onSurface,
                     modifier =
                         Modifier.padding(
-                            start = 20.dp,
-                            end = 20.dp,
+                            start = EditorHorizontalContentPadding,
+                            end = EditorHorizontalContentPadding,
                             bottom = 14.dp,
                         ),
                 )
@@ -776,29 +775,73 @@ private fun editorCollapsibleSummaryCard(
 }
 
 @Composable
+private fun editorPlainTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    singleLine: Boolean = false,
+    minLines: Int = 1,
+) {
+    val colors = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
+        textStyle = textStyle.copy(color = colors.onSurface),
+        cursorBrush = SolidColor(colors.primary),
+        singleLine = singleLine,
+        minLines = if (singleLine) 1 else minLines,
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            TextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = singleLine,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        style = textStyle,
+                        color = colors.onSurfaceVariant,
+                    )
+                },
+                colors =
+                    TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = Color.Transparent,
+                    ),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = EditorHorizontalContentPadding,
+                        vertical = 8.dp,
+                    ),
+            )
+        },
+    )
+}
+
+@Composable
 private fun editorTitleField(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
-    val colors = MaterialTheme.colorScheme
-    TextField(
+    editorPlainTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text("Title") },
+        placeholder = "Title",
         singleLine = true,
-        colors =
-            TextFieldDefaults.colors(
-                focusedTextColor = colors.onSurface,
-                unfocusedTextColor = colors.onSurface,
-                focusedPlaceholderColor = colors.onSurfaceVariant,
-                unfocusedPlaceholderColor = colors.onSurfaceVariant,
-                focusedContainerColor = colors.background,
-                unfocusedContainerColor = colors.background,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = Color.Transparent,
-            ),
+        textStyle = MaterialTheme.typography.titleLarge,
     )
 }
 
@@ -808,25 +851,12 @@ private fun editorContentField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = MaterialTheme.colorScheme
-    TextField(
+    editorPlainTextField(
         value = value,
         onValueChange = onValueChange,
+        placeholder = "Input",
         modifier = modifier,
-        placeholder = { Text("Input") },
         minLines = 12,
-        colors =
-            TextFieldDefaults.colors(
-                focusedTextColor = colors.onSurface,
-                unfocusedTextColor = colors.onSurface,
-                focusedPlaceholderColor = colors.onSurfaceVariant,
-                unfocusedPlaceholderColor = colors.onSurfaceVariant,
-                focusedContainerColor = colors.background,
-                unfocusedContainerColor = colors.background,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = Color.Transparent,
-            ),
+        textStyle = MaterialTheme.typography.bodyLarge,
     )
 }
