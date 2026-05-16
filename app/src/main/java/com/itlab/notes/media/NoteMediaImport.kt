@@ -26,6 +26,7 @@ object NoteMediaImport {
         resolver.openInputStream(uri)?.use { input ->
             file.outputStream().use { out -> input.copyTo(out) }
         } ?: error("Cannot read selected image")
+        require(file.length() > 0L) { "Selected image is empty" }
         return ContentItem.Image(
             source = DataSource(localPath = file.absolutePath),
             mimeType = mime,

@@ -8,14 +8,17 @@ import androidx.lifecycle.viewModelScope
 import com.itlab.domain.model.ContentItem
 import com.itlab.domain.model.Note
 import com.itlab.domain.model.NoteFolder
+import com.itlab.notes.media.withoutTextItems
+import com.itlab.notes.ui.notes.ALL_DIRECTORY_ID
 import com.itlab.notes.ui.notes.DirectoryItemUi
+import com.itlab.notes.ui.notes.FAVORITES_DIRECTORY_ID
 import com.itlab.notes.ui.notes.NoteItemUi
+import com.itlab.notes.ui.notes.RECENT_DIRECTORY_ID
+import com.itlab.notes.ui.notes.isVirtualDirectory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-
-private const val RECENT_DIRECTORY_ID = "recent"
 
 class NotesViewModel(
     private val useCases: NotesUseCases,
@@ -62,7 +65,7 @@ class NotesViewModel(
             is NotesUiEvent.RenameDirectory -> renameDirectory(event)
             is NotesUiEvent.DeleteDirectory -> deleteDirectory(event.directoryId)
             is NotesUiEvent.MoveNoteToDirectory -> {
-                if (event.targetDirectoryId == "all" || event.targetDirectoryId == RECENT_DIRECTORY_ID) return
+                if (isVirtualDirectory(event.targetDirectoryId)) return
                 viewModelScope.launch {
                     useCases.moveNoteToFolderUseCase(
                         folderId = event.targetDirectoryId,
@@ -70,6 +73,7 @@ class NotesViewModel(
                     )
                 }
             }
+            is NotesUiEvent.ToggleNoteFavorite -> toggleNoteFavorite(event.noteId)
             NotesUiEvent.BackToDirectoryNotes -> backToDirectoryNotes()
             is NotesUiEvent.SaveNote -> saveNote(event.note)
             is NotesUiEvent.DeleteNote -> {
@@ -92,7 +96,7 @@ class NotesViewModel(
 
     private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
         val normalized = event.newName.trim()
-        if (normalized.isBlank() || event.directoryId == "all" || event.directoryId == RECENT_DIRECTORY_ID) return
+        if (normalized.isBlank() || isVirtualDirectory(event.directoryId)) return
         viewModelScope.launch {
             val existingFolder = useCases.getFolderUseCase(event.directoryId) ?: return@launch
             useCases.updateFolderUseCase(existingFolder.copy(name = normalized))
@@ -100,7 +104,7 @@ class NotesViewModel(
     }
 
     private fun deleteDirectory(directoryId: String) {
-        if (directoryId == "all" || directoryId == RECENT_DIRECTORY_ID) return
+        if (isVirtualDirectory(directoryId)) return
         viewModelScope.launch {
             useCases.deleteFolderUseCase(directoryId)
             if ((uiState.screen as? NotesUiScreen.DirectoryNotes)?.directory?.id == directoryId) {
@@ -148,7 +152,8 @@ class NotesViewModel(
         val normalizedQuery = searchQuery.trim()
         return if (normalizedQuery.isBlank()) {
             when (directory.id) {
-                "all" -> useCases.observeNotesUseCase()
+                ALL_DIRECTORY_ID -> useCases.observeNotesUseCase()
+                FAVORITES_DIRECTORY_ID -> useCases.getAllFavoritesUseCase()
                 RECENT_DIRECTORY_ID ->
                     useCases.observeNotesUseCase().map { notes ->
                         notes.sortedByDescending { it.updatedAt }
@@ -162,6 +167,8 @@ class NotesViewModel(
                     folderId = directory.folderIdForSearch(),
                 )
             when (directory.id) {
+                FAVORITES_DIRECTORY_ID ->
+                    searchFlow.map { notes -> notes.filter { it.isFavorite } }
                 RECENT_DIRECTORY_ID ->
                     searchFlow.map { notes ->
                         notes.sortedByDescending { it.updatedAt }
@@ -206,6 +213,22 @@ class NotesViewModel(
         startNotesCollection(directory, uiState.notesSearchQuery)
     }
 
+    private fun toggleNoteFavorite(noteId: String) {
+        viewModelScope.launch {
+            useCases.switchFavoriteUseCase(noteId)
+            val editor = uiState.screen as? NotesUiScreen.NoteEditor
+            if (editor?.note?.id == noteId) {
+                uiState =
+                    uiState.copy(
+                        screen =
+                            editor.copy(
+                                note = editor.note.copy(isFavorite = !editor.note.isFavorite),
+                            ),
+                    )
+            }
+        }
+    }
+
     private fun saveNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         viewModelScope.launch {
@@ -225,10 +248,17 @@ class NotesViewModel(
         val countsByFolderId = latestNotes.groupingBy { it.folderId }.eachCount()
         val allNotesCount = latestNotes.size
 
-        val allNotesDir = DirectoryItemUi(id = "all", name = "All Notes", noteCount = allNotesCount)
+        val favoritesCount = latestNotes.count { it.isFavorite }
+        val allNotesDir = DirectoryItemUi(id = ALL_DIRECTORY_ID, name = "All Notes", noteCount = allNotesCount)
+        val favoritesDir =
+            DirectoryItemUi(
+                id = FAVORITES_DIRECTORY_ID,
+                name = "Favorites",
+                noteCount = favoritesCount,
+            )
 
         val directories =
-            listOf(allNotesDir) +
+            listOf(allNotesDir, favoritesDir) +
                 latestFolders.map { folder ->
                     val count = countsByFolderId[folder.id] ?: 0
                     folder.toUi(noteCount = count)
@@ -264,13 +294,14 @@ internal fun Note.toUi(): NoteItemUi =
                 .filterIsInstance<ContentItem.Text>()
                 .joinToString("\n") { it.text },
         folderId = folderId,
-        attachments = contentItems.filterNot { it is ContentItem.Text },
+        attachments = contentItems.withoutTextItems(),
+        isFavorite = isFavorite,
     )
 
 internal fun NoteItemUi.toContentItems(): List<ContentItem> =
     buildList {
         if (content.isNotBlank()) add(ContentItem.Text(content))
-        addAll(attachments)
+        addAll(attachments.withoutTextItems())
     }
 
 internal fun NoteItemUi.toDomain(folderId: String?): Note =
@@ -279,6 +310,7 @@ internal fun NoteItemUi.toDomain(folderId: String?): Note =
         title = title,
         folderId = folderId,
         contentItems = toContentItems(),
+        isFavorite = isFavorite,
     )
 
 internal fun Note.applyUiUpdate(
@@ -289,20 +321,23 @@ internal fun Note.applyUiUpdate(
         title = ui.title,
         folderId = targetFolderId,
         contentItems = ui.toContentItems(),
+        isFavorite = ui.isFavorite,
     )
 
 internal fun String.asDomainFolderId(): String? =
     when (this) {
-        "all",
+        ALL_DIRECTORY_ID,
         RECENT_DIRECTORY_ID,
+        FAVORITES_DIRECTORY_ID,
         -> null
         else -> this
     }
 
 internal fun DirectoryItemUi.folderIdForSearch(): String? =
     when (id) {
-        "all",
+        ALL_DIRECTORY_ID,
         RECENT_DIRECTORY_ID,
+        FAVORITES_DIRECTORY_ID,
         -> null
         else -> id
     }
