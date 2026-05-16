@@ -1,6 +1,7 @@
 package com.itlab.notes.ui.editor
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -33,6 +35,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -63,6 +66,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,9 +76,16 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,12 +101,17 @@ import com.itlab.notes.media.imageAttachments
 import com.itlab.notes.media.toCoilModel
 import com.itlab.notes.ui.asDomainFolderId
 import com.itlab.notes.ui.notes.NoteItemUi
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 
 private const val EDITOR_TOP_BAR_TITLE_MAX_LENGTH = 35
 
 private val EditorHorizontalGutter = 15.dp
 private val EditorHorizontalContentPadding = 15.dp
+private val EditorContentScrollBottomInset = 120.dp
+private val EditorContentScrollTopInset = 16.dp
+private val EditorContentFieldMinHeight = 160.dp
+private const val EditorAutosaveDebounceMs = 600L
 
 private data class EditorAttachmentsViewerState(
     val images: List<ContentItem.Image>,
@@ -119,18 +135,35 @@ fun editorScreen(
     directoryId: String,
     note: NoteItemUi,
     onBack: () -> Unit,
+    onPersist: (NoteItemUi) -> Unit,
     onSave: (NoteItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     val validateDuplicateTitle: ValidateDuplicateNoteTitleUseCase = koinInject()
-    val editorVm = remember(note.id) { EditorViewModel(initialNote = note) }
+    val initialNote = remember(note.id) { note }
+    val editorVm = remember(note.id) { EditorViewModel(initialNote = initialNote) }
     var attachmentsViewer by remember { mutableStateOf<EditorAttachmentsViewerState?>(null) }
     val targetFolderId = note.folderId ?: directoryId.asDomainFolderId()
     var titleDuplicate by remember { mutableStateOf(false) }
     val trimmedTitle = editorVm.title.trim()
     val titleHasDuplicate = titleDuplicate && trimmedTitle.isNotEmpty()
+
+    fun persistDraftIfNeeded(force: Boolean = false) {
+        if (titleHasDuplicate) return
+        val draft = editorVm.buildUpdatedNote()
+        if (!force && draft == initialNote) return
+        onPersist(draft)
+    }
+
+    LaunchedEffect(editorVm.title, editorVm.content, editorVm.attachments, titleHasDuplicate) {
+        if (editorVm.buildUpdatedNote() == initialNote) return@LaunchedEffect
+        delay(EditorAutosaveDebounceMs)
+        if (!titleHasDuplicate) {
+            persistDraftIfNeeded()
+        }
+    }
 
     LaunchedEffect(editorVm.title, targetFolderId, note.id) {
         titleDuplicate =
@@ -145,6 +178,19 @@ fun editorScreen(
         editorVm.syncFavoriteFromNote(note.isFavorite)
     }
 
+    val leaveEditor = {
+        persistDraftIfNeeded()
+        onBack()
+    }
+
+    BackHandler {
+        if (attachmentsViewer != null) {
+            attachmentsViewer = null
+        } else {
+            leaveEditor()
+        }
+    }
+
     val pickImages =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickMultipleVisualMedia(),
@@ -152,6 +198,7 @@ fun editorScreen(
             if (uris.isEmpty()) return@rememberLauncherForActivityResult
             val imported = NoteMediaImport.importImagesFromUris(context, uris)
             editorVm.addAttachments(imported)
+            persistDraftIfNeeded(force = true)
         }
 
     Scaffold(
@@ -161,7 +208,7 @@ fun editorScreen(
                 directoryName = directoryName,
                 title = editorVm.title,
                 isFavorite = note.isFavorite,
-                onBack = onBack,
+                onBack = leaveEditor,
                 onToggleFavorite = onToggleFavorite,
                 onAddImage = {
                     pickImages.launch(
@@ -173,7 +220,7 @@ fun editorScreen(
         floatingActionButton = {
             editorFab(
                 onClick = { onSave(editorVm.buildUpdatedNote()) },
-                enabled = !titleHasDuplicate,
+                enabled = trimmedTitle.isNotEmpty() && !titleHasDuplicate,
             )
         },
     ) { paddingValues ->
@@ -217,6 +264,7 @@ fun editorScreen(
                         NoteMediaImport.deleteImportedFileIfOwned(context, item.source.localPath)
                     }
                     editorVm.removeAttachment(item.id)
+                    persistDraftIfNeeded(force = true)
                 },
                 modifier =
                     Modifier
@@ -347,21 +395,16 @@ private fun editorContent(
             )
         }
 
-        editorTitleField(
-            value = title,
-            onValueChange = onTitleChange,
+        editorTitleSection(
+            title = title,
+            titleHasDuplicate = titleHasDuplicate,
+            onTitleChange = onTitleChange,
         )
-        if (titleHasDuplicate) {
-            Text(
-                text = "A note with that name already exists.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
 
         editorContentField(
             value = content,
             onValueChange = onContentChange,
+            scrollState = scrollState,
             modifier = Modifier.padding(top = 12.dp),
         )
 
@@ -787,38 +830,119 @@ private fun editorPlainTextField(
         minLines = if (singleLine) 1 else minLines,
         interactionSource = interactionSource,
         decorationBox = { innerTextField ->
-            TextFieldDefaults.DecorationBox(
+            editorPlainTextFieldDecoration(
                 value = value,
-                innerTextField = innerTextField,
-                enabled = true,
+                placeholder = placeholder,
+                textStyle = textStyle,
                 singleLine = singleLine,
-                visualTransformation = VisualTransformation.None,
                 interactionSource = interactionSource,
-                placeholder = {
-                    Text(
-                        text = placeholder,
-                        style = textStyle,
-                        color = colors.onSurfaceVariant,
-                    )
-                },
-                colors =
-                    TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                        errorIndicatorColor = Color.Transparent,
-                    ),
-                contentPadding =
-                    PaddingValues(
-                        horizontal = EditorHorizontalContentPadding,
-                        vertical = 8.dp,
-                    ),
+                innerTextField = innerTextField,
             )
         },
     )
+}
+
+@Composable
+private fun editorPlainTextFieldDecoration(
+    value: String,
+    placeholder: String,
+    textStyle: TextStyle,
+    singleLine: Boolean,
+    interactionSource: MutableInteractionSource,
+    innerTextField: @Composable () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    TextFieldDefaults.DecorationBox(
+        value = value,
+        innerTextField = innerTextField,
+        enabled = true,
+        singleLine = singleLine,
+        visualTransformation = VisualTransformation.None,
+        interactionSource = interactionSource,
+        placeholder = {
+            Text(
+                text = placeholder,
+                style = textStyle,
+                color = colors.onSurfaceVariant,
+            )
+        },
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+            ),
+        contentPadding =
+            PaddingValues(
+                horizontal = EditorHorizontalContentPadding,
+                vertical = 8.dp,
+            ),
+    )
+}
+
+private fun editorScrollTargetForCursor(
+    scrollState: ScrollState,
+    fieldTopInScrollPx: Float,
+    textLayoutResult: TextLayoutResult,
+    cursorOffset: Int,
+    bottomInsetPx: Float,
+    topInsetPx: Float,
+): Int? {
+    if (scrollState.viewportSize <= 0) return null
+    val safeOffset = cursorOffset.coerceIn(0, textLayoutResult.layoutInput.text.length)
+    val cursorRect = textLayoutResult.getCursorRect(safeOffset)
+    val cursorTopInScroll = fieldTopInScrollPx + cursorRect.top
+    val cursorBottomInScroll = fieldTopInScrollPx + cursorRect.bottom
+    val viewportTop = scrollState.value.toFloat()
+    val viewportBottom = viewportTop + scrollState.viewportSize - bottomInsetPx
+
+    val targetScroll =
+        when {
+            cursorBottomInScroll > viewportBottom ->
+                (cursorBottomInScroll - scrollState.viewportSize + bottomInsetPx)
+                    .roundToInt()
+                    .coerceIn(0, scrollState.maxValue)
+            cursorTopInScroll < viewportTop + topInsetPx ->
+                (cursorTopInScroll - topInsetPx).roundToInt().coerceIn(0, scrollState.maxValue)
+            else -> return null
+        }
+    return targetScroll.takeIf { it != scrollState.value }
+}
+
+private val EditorTitleDuplicateErrorLineHeight = 20.dp
+
+@Composable
+private fun editorTitleSection(
+    title: String,
+    titleHasDuplicate: Boolean,
+    onTitleChange: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        editorTitleField(
+            value = title,
+            onValueChange = onTitleChange,
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = EditorHorizontalContentPadding)
+                    .heightIn(min = EditorTitleDuplicateErrorLineHeight)
+                    .padding(top = 4.dp),
+        ) {
+            if (titleHasDuplicate) {
+                Text(
+                    text = "A note with that name already exists.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -839,14 +963,68 @@ private fun editorTitleField(
 private fun editorContentField(
     value: String,
     onValueChange: (String) -> Unit,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
-    editorPlainTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = "Input",
-        modifier = modifier,
-        minLines = 12,
-        textStyle = MaterialTheme.typography.bodyLarge,
+    val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val textStyle = MaterialTheme.typography.bodyLarge
+    val bottomInsetPx = with(density) { EditorContentScrollBottomInset.toPx() }
+    val topInsetPx = with(density) { EditorContentScrollTopInset.toPx() }
+
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var fieldTopInScrollPx by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(value) {
+        if (textFieldValue.text != value) {
+            textFieldValue = TextFieldValue(text = value, selection = TextRange(value.length))
+        }
+    }
+
+    LaunchedEffect(textFieldValue, textLayoutResult, fieldTopInScrollPx, scrollState.viewportSize) {
+        val layout = textLayoutResult ?: return@LaunchedEffect
+        val targetScroll =
+            editorScrollTargetForCursor(
+                scrollState = scrollState,
+                fieldTopInScrollPx = fieldTopInScrollPx,
+                textLayoutResult = layout,
+                cursorOffset = textFieldValue.selection.end,
+                bottomInsetPx = bottomInsetPx,
+                topInsetPx = topInsetPx,
+            ) ?: return@LaunchedEffect
+        scrollState.animateScrollTo(targetScroll)
+    }
+
+    BasicTextField(
+        value = textFieldValue,
+        onValueChange = { updated ->
+            textFieldValue = updated
+            if (updated.text != value) {
+                onValueChange(updated.text)
+            }
+        },
+        onTextLayout = { textLayoutResult = it },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .sizeIn(minHeight = EditorContentFieldMinHeight)
+                .onGloballyPositioned { coordinates ->
+                    fieldTopInScrollPx = coordinates.positionInParent().y
+                },
+        textStyle = textStyle.copy(color = colors.onSurface),
+        cursorBrush = SolidColor(colors.primary),
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            editorPlainTextFieldDecoration(
+                value = textFieldValue.text,
+                placeholder = "Input",
+                textStyle = textStyle,
+                singleLine = false,
+                interactionSource = interactionSource,
+                innerTextField = innerTextField,
+            )
+        },
     )
 }

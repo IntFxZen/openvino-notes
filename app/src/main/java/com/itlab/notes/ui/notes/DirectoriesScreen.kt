@@ -2,6 +2,7 @@
 
 package com.itlab.notes.ui.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -56,6 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,9 +76,12 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+
+private const val DIRECTORY_NAME_TAKEN_ERROR = "A directory with this name already exists"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +97,10 @@ fun directoriesScreen(
     val colors = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
     var showCreateDialog by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showCreateDialog) {
+        showCreateDialog = false
+    }
 
     Scaffold(
         modifier =
@@ -162,12 +173,8 @@ private fun directoriesCreateDirectoryDialog(
                         onValueChange = { directoryName = it },
                         placeholderText = "Enter directory name...",
                         isError = nameAlreadyExists,
-                        errorMessage =
-                            if (nameAlreadyExists) {
-                                "Папка с таким названием уже существует"
-                            } else {
-                                null
-                            },
+                        errorMessage = if (nameAlreadyExists) DIRECTORY_NAME_TAKEN_ERROR else null,
+                        requestInitialFocus = true,
                     )
                 },
                 actions = {
@@ -328,6 +335,13 @@ private fun directoriesList(
     var pendingRename by remember { mutableStateOf<DirectoryItemUi?>(null) }
     val focusManager = LocalFocusManager.current
 
+    BackHandler(enabled = pendingRename != null || pendingDelete != null) {
+        when {
+            pendingRename != null -> pendingRename = null
+            pendingDelete != null -> pendingDelete = null
+        }
+    }
+
     val allNotesDirectory = remember(directories) { directories.firstOrNull { it.id == ALL_DIRECTORY_ID } }
     val favoritesDirectory =
         remember(directories) { directories.firstOrNull { it.id == FAVORITES_DIRECTORY_ID } }
@@ -341,6 +355,7 @@ private fun directoriesList(
         remember(totalNotesCount) {
             DirectoryItemUi(id = RECENT_DIRECTORY_ID, name = "Recent", noteCount = totalNotesCount)
         }
+    val isSearchActive = searchQuery.isNotBlank()
 
     Column(
         modifier = modifier.fillMaxSize().clearFocusOnTap(focusManager).padding(horizontal = 12.dp),
@@ -378,27 +393,40 @@ private fun directoriesList(
                 addSection("Everything", listOf(allNotes))
             }
             favoritesDirectory?.let { favorites ->
-                addSection("Favorites", listOf(favorites))
+                addSection("Favorite notes", listOf(favorites))
             }
-            addSection("Continue working", listOf(recentDirectory))
+            if (!isSearchActive) {
+                addSection("Continue working", listOf(recentDirectory))
+            }
             addSection("Regular directories", regularDirectories)
 
-            if (regularDirectories.isEmpty()) {
-                item {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 80.dp)
-                                .heightIn(min = 220.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        directoriesEmptyPlaceholder(
-                            onOpenAllNotes = {
-                                allNotesDirectory?.let { onDirectoryClick(it) }
-                            },
-                            openAllNotesEnabled = allNotesDirectory != null,
-                        )
+            when {
+                isSearchActive && directories.isEmpty() -> {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 80.dp)
+                                    .heightIn(min = 220.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            directoriesSearchEmptyState()
+                        }
+                    }
+                }
+                !isSearchActive && regularDirectories.isEmpty() -> {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 80.dp)
+                                    .heightIn(min = 220.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            directoriesEmptyState()
+                        }
                     }
                 }
             }
@@ -470,48 +498,6 @@ private fun directoriesHeroPanel(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun directoriesEmptyPlaceholder(
-    onOpenAllNotes: () -> Unit,
-    openAllNotesEnabled: Boolean,
-) {
-    val colors = MaterialTheme.colorScheme
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(colors.surfaceContainer),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Folder,
-                contentDescription = null,
-                modifier = Modifier.padding(14.dp).size(32.dp),
-                tint = colors.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = "No directories yet",
-            style = MaterialTheme.typography.titleMedium,
-            color = colors.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text =
-                "Tap + to create a directory and organize your notes.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 50.dp),
-        )
     }
 }
 
@@ -620,6 +606,8 @@ private fun directoryRow(
             color = colors.onSurface,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Surface(
             color = colors.surfaceVariant,
@@ -681,9 +669,11 @@ private fun directoryActionsDialog(
                 },
                 input = {
                     Text(
-                        "Choose action for \"${directory.name}\"",
+                        text = "Choose action for \"${directory.name}\"",
                         style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 actions = {
@@ -743,12 +733,8 @@ private fun directoryRenameDialog(
                         onValueChange = { renameName = it },
                         placeholderText = "Enter directory name...",
                         isError = nameAlreadyExists,
-                        errorMessage =
-                            if (nameAlreadyExists) {
-                                "Папка с таким названием уже существует"
-                            } else {
-                                null
-                            },
+                        errorMessage = if (nameAlreadyExists) DIRECTORY_NAME_TAKEN_ERROR else null,
+                        requestInitialFocus = true,
                     )
                 },
                 actions = {
@@ -781,7 +767,14 @@ private fun directoryOutlinedTextField(
     enabled: Boolean = true,
     isError: Boolean = false,
     errorMessage: String? = null,
+    requestInitialFocus: Boolean = false,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(requestInitialFocus) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+        }
+    }
     val interactionSource = remember { MutableInteractionSource() }
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.medium
@@ -805,8 +798,17 @@ private fun directoryOutlinedTextField(
 
     BasicTextField(
         value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        onValueChange = { newValue -> onValueChange(newValue.coerceDirectoryNameLength()) },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (requestInitialFocus) {
+                        Modifier.focusRequester(focusRequester)
+                    } else {
+                        Modifier
+                    },
+                ),
         enabled = enabled,
         textStyle = textStyle,
         singleLine = true,
