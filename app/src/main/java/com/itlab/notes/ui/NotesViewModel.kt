@@ -76,6 +76,7 @@ class NotesViewModel(
             }
             is NotesUiEvent.ToggleNoteFavorite -> toggleNoteFavorite(event.noteId)
             NotesUiEvent.BackToDirectoryNotes -> backToDirectoryNotes()
+            is NotesUiEvent.LeaveEditor -> leaveEditor(event.note)
             is NotesUiEvent.SaveNote -> saveNote(event.note)
             is NotesUiEvent.PersistNote -> persistNote(event.note)
             is NotesUiEvent.DeleteNote -> {
@@ -238,30 +239,48 @@ class NotesViewModel(
         }
     }
 
+    private fun leaveEditor(note: NoteItemUi) {
+        val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
+        viewModelScope.launch {
+            if (note.title.trim().isNotEmpty()) {
+                persistNoteToRepository(note, editor.directory)
+            }
+            navigateBackToDirectoryNotes(editor.directory)
+        }
+    }
+
     private fun saveNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         viewModelScope.launch {
-            persistNoteToRepository(note, editor.directory)
-            uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
-            startNotesCollection(editor.directory, uiState.notesSearchQuery)
+            if (!persistNoteToRepository(note, editor.directory)) return@launch
+            navigateBackToDirectoryNotes(editor.directory)
         }
+    }
+
+    private fun navigateBackToDirectoryNotes(directory: DirectoryItemUi) {
+        uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = directory))
+        startNotesCollection(directory, uiState.notesSearchQuery)
     }
 
     private suspend fun persistNoteToRepository(
         note: NoteItemUi,
         directory: DirectoryItemUi,
-    ) {
+    ): Boolean {
+        if (note.title.trim().isEmpty()) return false
         val targetFolderId = note.folderId ?: directory.id.asDomainFolderId()
         val existing = useCases.getNoteUseCase(note.id)
-        if (existing != null) {
-            useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
-        } else {
-            useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
-        }
+        val result =
+            if (existing != null) {
+                useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
+            } else {
+                useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
+            }
+        if (result.isFailure) return false
         val editor = uiState.screen as? NotesUiScreen.NoteEditor
         if (editor?.note?.id == note.id) {
             uiState = uiState.copy(screen = editor.copy(note = note))
         }
+        return true
     }
 
     private fun recomputeDirectories() {

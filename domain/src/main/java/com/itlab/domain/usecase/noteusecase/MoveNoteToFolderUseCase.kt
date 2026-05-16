@@ -4,6 +4,7 @@ import com.itlab.domain.repository.NoteFolderRepository
 import com.itlab.domain.repository.NotesRepository
 import com.itlab.domain.usecase.requireNotBlank
 import kotlin.time.Clock
+import kotlinx.coroutines.flow.first
 
 class MoveNoteToFolderUseCase(
     private val notesRepo: NotesRepository,
@@ -18,7 +19,19 @@ class MoveNoteToFolderUseCase(
             requireNotBlank(folderId, "Folder id")
             requireNotNull(folderRepo.getFolderById(folderId)) { "Folder not found: $folderId" }
             val note = notesRepo.getNoteById(noteId) ?: throw IllegalArgumentException("Note not found: $noteId")
-            val updated = note.copy(folderId = folderId, updatedAt = Clock.System.now())
+            val titlesInTargetFolder =
+                notesRepo
+                    .observeNotesByFolder(folderId)
+                    .first()
+                    .filter { it.id != noteId }
+                    .map { it.title }
+            val uniqueTitle = resolveUniqueNoteTitle(note.title, titlesInTargetFolder)
+            val updated =
+                note.copy(
+                    folderId = folderId,
+                    title = uniqueTitle,
+                    updatedAt = Clock.System.now(),
+                )
             notesRepo.updateNote(updated)
         }
 }

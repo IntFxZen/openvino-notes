@@ -2,7 +2,6 @@ package com.itlab.domain.usecase.noteusecase
 
 import com.itlab.domain.model.Note
 import com.itlab.domain.repository.NotesRepository
-import java.util.UUID
 import kotlin.time.Clock
 
 class CreateNoteUseCase(
@@ -19,13 +18,12 @@ class CreateNoteUseCase(
                 )
             require(!hasDuplicateTitle) { "Note with title '$normalizedTitle' already exists in this folder" }
             val now = Clock.System.now()
-
-            val note =
+            val noteToPersist =
                 note.copy(
-                    id = UUID.randomUUID().toString(),
-                    createdAt = now,
+                    title = normalizedTitle,
                     updatedAt = now,
                 )
-            repo.createNote(note)
+            repo.createNote(noteToPersist)
+            noteToPersist.id
         }
 }
