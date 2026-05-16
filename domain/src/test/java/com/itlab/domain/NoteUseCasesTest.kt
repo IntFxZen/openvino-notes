@@ -21,6 +21,7 @@ import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -35,7 +36,8 @@ class NoteUseCasesTest {
 
         override fun observeNotes() = flow
 
-        override fun observeNotesByFolder(folderId: String) = flow
+        override fun observeNotesByFolder(folderId: String) =
+            flow.map { notes -> notes.filter { it.folderId == folderId } }
 
         override suspend fun getNoteById(id: String): Note? = store[id]
 
@@ -231,7 +233,7 @@ class NoteUseCasesTest {
             val duplicated = repo.getNoteById(newId)
 
             assertEquals(true, duplicated != null)
-            assertEquals("Hello Copy", duplicated?.title)
+            assertEquals("Hello (1)", duplicated?.title)
             assertEquals(setOf("kotlin"), duplicated?.tags)
             assertEquals(true, duplicated?.isFavorite)
             assertEquals("summary", duplicated?.summary)
@@ -258,6 +260,26 @@ class NoteUseCasesTest {
             val duplicated = repo.getNoteById(newId)
 
             assertEquals("Copy", duplicated?.title)
+        }
+
+    @Test
+    fun moveNoteToFolder_renamesWhenTitleExistsInTargetFolder() =
+        runBlocking {
+            val notesRepo = FakeNotesRepo()
+            val folderRepo = FakeFolderRepo()
+
+            val move = MoveNoteToFolderUseCase(notesRepo, folderRepo)
+            folderRepo.createFolder(NoteFolder(id = "f1", name = "One"))
+            folderRepo.createFolder(NoteFolder(id = "f2", name = "Two"))
+
+            notesRepo.createNote(Note(id = "n1", title = "Report", folderId = "f1"))
+            notesRepo.createNote(Note(id = "n2", title = "Report", folderId = "f2"))
+
+            move("f2", "n1").getOrThrow()
+
+            val moved = notesRepo.getNoteById("n1")
+            assertEquals("f2", moved?.folderId)
+            assertEquals("Report (1)", moved?.title)
         }
 
     @Test

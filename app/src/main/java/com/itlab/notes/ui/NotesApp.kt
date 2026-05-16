@@ -75,7 +75,7 @@ fun notesApp() {
                 directoryName = screen.directory.name,
                 directoryId = screen.directory.id,
                 note = screen.note,
-                onBack = { viewModel.onEvent(NotesUiEvent.BackToDirectoryNotes) },
+                onBack = { draft -> viewModel.onEvent(NotesUiEvent.LeaveEditor(draft)) },
                 onPersist = { draft ->
                     viewModel.onEvent(NotesUiEvent.PersistNote(draft))
                 },

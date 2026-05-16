@@ -51,6 +51,11 @@ sealed interface NotesUiEvent {
 
     data object BackToDirectoryNotes : NotesUiEvent
 
+    /** Saves pending editor changes (if any), then returns to the notes list. */
+    data class LeaveEditor(
+        val note: NoteItemUi,
+    ) : NotesUiEvent
+
     data class SaveNote(
         val note: NoteItemUi,
     ) : NotesUiEvent

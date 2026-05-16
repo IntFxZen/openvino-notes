@@ -134,7 +134,7 @@ fun editorScreen(
     directoryName: String,
     directoryId: String,
     note: NoteItemUi,
-    onBack: () -> Unit,
+    onBack: (NoteItemUi) -> Unit,
     onPersist: (NoteItemUi) -> Unit,
     onSave: (NoteItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
@@ -151,7 +151,7 @@ fun editorScreen(
     val titleHasDuplicate = titleDuplicate && trimmedTitle.isNotEmpty()
 
     fun persistDraftIfNeeded(force: Boolean = false) {
-        if (titleHasDuplicate) return
+        if (titleHasDuplicate || trimmedTitle.isEmpty()) return
         val draft = editorVm.buildUpdatedNote()
         if (!force && draft == initialNote) return
         onPersist(draft)
@@ -179,8 +179,7 @@ fun editorScreen(
     }
 
     val leaveEditor = {
-        persistDraftIfNeeded()
-        onBack()
+        onBack(editorVm.buildUpdatedNote())
     }
 
     BackHandler {
