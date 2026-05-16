@@ -7,6 +7,7 @@ import com.itlab.domain.usecase.folderusecase.ObserveFoldersUseCase
 import com.itlab.domain.usecase.folderusecase.UpdateFolderUseCase
 import com.itlab.domain.usecase.noteusecase.CreateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.DeleteNoteUseCase
+import com.itlab.domain.usecase.noteusecase.GetUserIdUseCase
 import com.itlab.domain.usecase.noteusecase.GetAllFavoritesUseCase
 import com.itlab.domain.usecase.noteusecase.GetNoteUseCase
 import com.itlab.domain.usecase.noteusecase.MoveNoteToFolderUseCase
@@ -35,6 +36,7 @@ val appModule =
         factory { ObserveFoldersUseCase(get()) }
         factory { MoveNoteToFolderUseCase(get(), get()) }
         factory { ObserveNotesUseCase(get()) }
+        factory { GetUserIdUseCase(get()) }
         factory { SearchNotesUseCase(get()) }
         factory { SwitchFavoriteUseCase(get()) }
         factory { GetAllFavoritesUseCase(get()) }
@@ -54,6 +56,7 @@ val appModule =
                 getFolderUseCase = get(),
                 moveNoteToFolderUseCase = get(),
                 observeNotesUseCase = get(),
+                getUserIdUseCase = get(),
                 searchNotesUseCase = get(),
                 switchFavoriteUseCase = get(),
                 getAllFavoritesUseCase = get(),
