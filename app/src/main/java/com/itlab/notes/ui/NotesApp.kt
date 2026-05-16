@@ -79,6 +79,9 @@ fun notesApp() {
                 onSave = { updated ->
                     viewModel.onEvent(NotesUiEvent.SaveNote(updated))
                 },
+                onToggleFavorite = {
+                    viewModel.onEvent(NotesUiEvent.ToggleNoteFavorite(screen.note.id))
+                },
             )
         }
     }

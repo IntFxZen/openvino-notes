@@ -7,7 +7,9 @@ import com.itlab.domain.usecase.folderusecase.ObserveFoldersUseCase
 import com.itlab.domain.usecase.folderusecase.UpdateFolderUseCase
 import com.itlab.domain.usecase.noteusecase.CreateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.DeleteNoteUseCase
+import com.itlab.domain.usecase.noteusecase.GetAllFavoritesUseCase
 import com.itlab.domain.usecase.noteusecase.MoveNoteToFolderUseCase
+import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesByFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
@@ -26,4 +28,6 @@ data class NotesUseCases(
     val moveNoteToFolderUseCase: MoveNoteToFolderUseCase,
     val observeNotesUseCase: ObserveNotesUseCase,
     val searchNotesUseCase: SearchNotesUseCase,
+    val switchFavoriteUseCase: SwitchFavoriteUseCase,
+    val getAllFavoritesUseCase: GetAllFavoritesUseCase,
 )

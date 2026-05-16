@@ -76,6 +76,10 @@ sealed interface NotesUiEvent {
     data class DirectorySearchQueryChanged(
         val query: String,
     ) : NotesUiEvent
+
+    data class ToggleNoteFavorite(
+        val noteId: String,
+    ) : NotesUiEvent
 }
 
 interface NotesViewModelContract {
