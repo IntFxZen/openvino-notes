@@ -12,6 +12,7 @@ class EditorViewModel(
     initialNote: NoteItemUi,
 ) {
     private val noteId: String = initialNote.id
+    private val userId: String = initialNote.userId
     private val folderId: String? = initialNote.folderId
 
     var title: String by mutableStateOf(initialNote.title.toSingleLineText())
@@ -54,6 +55,7 @@ class EditorViewModel(
     fun buildUpdatedNote(): NoteItemUi =
         NoteItemUi(
             id = noteId,
+            userId = userId,
             title = title,
             content = content,
             folderId = folderId,
