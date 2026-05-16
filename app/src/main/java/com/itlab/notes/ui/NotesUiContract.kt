@@ -55,6 +55,11 @@ sealed interface NotesUiEvent {
         val note: NoteItemUi,
     ) : NotesUiEvent
 
+    /** Persists editor changes without leaving the editor screen. */
+    data class PersistNote(
+        val note: NoteItemUi,
+    ) : NotesUiEvent
+
     data class DeleteNote(
         val noteId: String,
     ) : NotesUiEvent

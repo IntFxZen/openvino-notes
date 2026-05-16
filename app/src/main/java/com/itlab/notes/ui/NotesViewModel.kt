@@ -14,6 +14,7 @@ import com.itlab.notes.ui.notes.DirectoryItemUi
 import com.itlab.notes.ui.notes.FAVORITES_DIRECTORY_ID
 import com.itlab.notes.ui.notes.NoteItemUi
 import com.itlab.notes.ui.notes.RECENT_DIRECTORY_ID
+import com.itlab.notes.ui.notes.coerceDirectoryNameLength
 import com.itlab.notes.ui.notes.isVirtualDirectory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +56,7 @@ class NotesViewModel(
             is NotesUiEvent.OpenNote -> openNote(event.note)
             NotesUiEvent.CreateNote -> createNote()
             is NotesUiEvent.CreateDirectory -> {
-                val normalized = event.name.trim()
+                val normalized = event.name.trim().coerceDirectoryNameLength()
                 if (normalized.isNotBlank()) {
                     viewModelScope.launch {
                         useCases.createFolderUseCase(NoteFolder(name = normalized))
@@ -76,6 +77,7 @@ class NotesViewModel(
             is NotesUiEvent.ToggleNoteFavorite -> toggleNoteFavorite(event.noteId)
             NotesUiEvent.BackToDirectoryNotes -> backToDirectoryNotes()
             is NotesUiEvent.SaveNote -> saveNote(event.note)
+            is NotesUiEvent.PersistNote -> persistNote(event.note)
             is NotesUiEvent.DeleteNote -> {
                 viewModelScope.launch {
                     useCases.deleteNoteUseCase(event.noteId)
@@ -95,7 +97,7 @@ class NotesViewModel(
     }
 
     private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
-        val normalized = event.newName.trim()
+        val normalized = event.newName.trim().coerceDirectoryNameLength()
         if (normalized.isBlank() || isVirtualDirectory(event.directoryId)) return
         viewModelScope.launch {
             val existingFolder = useCases.getFolderUseCase(event.directoryId) ?: return@launch
@@ -229,18 +231,36 @@ class NotesViewModel(
         }
     }
 
+    private fun persistNote(note: NoteItemUi) {
+        val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
+        viewModelScope.launch {
+            persistNoteToRepository(note, editor.directory)
+        }
+    }
+
     private fun saveNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         viewModelScope.launch {
-            val targetFolderId = note.folderId ?: editor.directory.id.asDomainFolderId()
-            val existing = latestNotes.firstOrNull { it.id == note.id }
-            if (existing != null) {
-                useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
-            } else {
-                useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
-            }
+            persistNoteToRepository(note, editor.directory)
             uiState = uiState.copy(screen = NotesUiScreen.DirectoryNotes(directory = editor.directory))
             startNotesCollection(editor.directory, uiState.notesSearchQuery)
+        }
+    }
+
+    private suspend fun persistNoteToRepository(
+        note: NoteItemUi,
+        directory: DirectoryItemUi,
+    ) {
+        val targetFolderId = note.folderId ?: directory.id.asDomainFolderId()
+        val existing = useCases.getNoteUseCase(note.id)
+        if (existing != null) {
+            useCases.updateNoteUseCase(existing.applyUiUpdate(note, targetFolderId))
+        } else {
+            useCases.createNoteUseCase(note.toDomain(folderId = targetFolderId))
+        }
+        val editor = uiState.screen as? NotesUiScreen.NoteEditor
+        if (editor?.note?.id == note.id) {
+            uiState = uiState.copy(screen = editor.copy(note = note))
         }
     }
 
