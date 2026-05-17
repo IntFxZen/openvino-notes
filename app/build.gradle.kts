@@ -1,3 +1,4 @@
+import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -71,6 +72,15 @@ kotlin {
     }
 }
 
+configure<DetektExtension> {
+    config.setFrom(
+        files(
+            rootProject.file("detekt.yml"),
+            layout.projectDirectory.file("detekt.yml"),
+        ),
+    )
+}
+
 dependencies {
     implementation(project(":domain"))
     implementation(project(":data"))
@@ -86,6 +96,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)

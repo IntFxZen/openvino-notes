@@ -11,12 +11,18 @@ import java.util.UUID
 object NoteMediaImport {
     private const val SUBDIR = "note_attachments"
 
-    fun importImagesFromUris(context: Context, uris: List<Uri>): List<ContentItem.Image> =
+    fun importImagesFromUris(
+        context: Context,
+        uris: List<Uri>,
+    ): List<ContentItem.Image> =
         uris.mapNotNull { uri ->
             runCatching { importImageFromUri(context, uri) }.getOrNull()
         }
 
-    fun importImageFromUri(context: Context, uri: Uri): ContentItem.Image {
+    fun importImageFromUri(
+        context: Context,
+        uri: Uri,
+    ): ContentItem.Image {
         val appContext = context.applicationContext
         val resolver = appContext.contentResolver
         val mime = resolver.getType(uri) ?: "image/jpeg"
@@ -33,7 +39,10 @@ object NoteMediaImport {
         )
     }
 
-    fun deleteImportedFileIfOwned(context: Context, localPath: String?) {
+    fun deleteImportedFileIfOwned(
+        context: Context,
+        localPath: String?,
+    ) {
         val path = localPath ?: return
         val file = File(path)
         if (!file.exists()) return

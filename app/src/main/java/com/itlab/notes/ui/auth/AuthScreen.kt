@@ -4,11 +4,8 @@ import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +38,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -57,16 +56,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.itlab.notes.R
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun authScreen(
-    viewModel: AuthViewModel = koinViewModel(),
-) {
+fun authScreen(viewModel: AuthViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -130,35 +127,35 @@ fun authScreen(
     }
 
     Scaffold { padding ->
-        AnimatedContent(
-            targetState = state.step,
+        Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(padding),
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "auth_step",
-        ) { step ->
-            when (step) {
-                AuthScreenStep.ChooseMethod ->
-                    authMethodChoiceContent(
-                        isLoading = state.isLoading,
-                        googleSignInEnabled = googleSignInEnabled,
-                        onGoogleClick = launchGoogleSignIn,
-                        onEmailClick = { viewModel.openEmailStep() },
-                        onContinueOffline = { viewModel.continueOffline() },
-                        errorMessage = state.errorMessage,
-                    )
-                AuthScreenStep.Email ->
-                    authEmailContent(
-                        state = state,
-                        onBack = { viewModel.backToMethodChoice() },
-                        onSignIn = viewModel::signInWithEmail,
-                        onSignUp = viewModel::signUpWithEmail,
-                        onToggleSignUpMode = { viewModel.toggleSignUpMode() },
-                        onClearError = { viewModel.clearError() },
-                        onClearSuccess = { viewModel.clearSuccess() },
-                    )
+        ) {
+            key(state.step) {
+                when (state.step) {
+                    AuthScreenStep.ChooseMethod ->
+                        authMethodChoiceContent(
+                            isLoading = state.isLoading,
+                            googleSignInEnabled = googleSignInEnabled,
+                            onGoogleClick = launchGoogleSignIn,
+                            onEmailClick = { viewModel.openEmailStep() },
+                            onContinueOffline = { viewModel.continueOffline() },
+                            errorMessage = state.errorMessage,
+                        )
+                    AuthScreenStep.Email ->
+                        authEmailContent(
+                            state = state,
+                            onBackFromEmail = { viewModel.backFromEmailStep() },
+                            onSignIn = viewModel::signInWithEmail,
+                            onSignUp = viewModel::signUpWithEmail,
+                            onSwitchToSignUp = { viewModel.switchToSignUpMode() },
+                            onSwitchToSignIn = { viewModel.switchToSignInMode() },
+                            onClearError = { viewModel.clearError() },
+                            onClearSuccess = { viewModel.clearSuccess() },
+                        )
+                }
             }
         }
     }
@@ -199,13 +196,15 @@ private fun authMethodChoiceContent(
 
         OutlinedButton(
             onClick = onGoogleClick,
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
             enabled = !isLoading && googleSignInEnabled,
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
+                authButtonLoadingIndicator(
+                    color = MaterialTheme.colorScheme.primary,
                 )
             } else {
                 Icon(
@@ -222,7 +221,10 @@ private fun authMethodChoiceContent(
 
         OutlinedButton(
             onClick = onEmailClick,
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
             enabled = !isLoading,
         ) {
             Icon(
@@ -258,14 +260,15 @@ private fun authMethodChoiceContent(
 @Composable
 private fun authEmailContent(
     state: AuthUiState,
-    onBack: () -> Unit,
+    onBackFromEmail: () -> Unit,
     onSignIn: (String, String) -> Unit,
     onSignUp: (String, String) -> Unit,
-    onToggleSignUpMode: () -> Unit,
+    onSwitchToSignUp: () -> Unit,
+    onSwitchToSignIn: () -> Unit,
     onClearError: () -> Unit,
     onClearSuccess: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
+    BackHandler(onBack = onBackFromEmail)
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -284,7 +287,7 @@ private fun authEmailContent(
                 )
             },
             navigationIcon = {
-                IconButton(onClick = onBack, enabled = !state.isLoading) {
+                IconButton(onClick = onBackFromEmail, enabled = !state.isLoading) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Back",
@@ -313,6 +316,7 @@ private fun authEmailContent(
                     onClearError()
                     onClearSuccess()
                 },
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Email") },
                 singleLine = true,
@@ -331,6 +335,7 @@ private fun authEmailContent(
                     onClearError()
                     onClearSuccess()
                 },
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Password") },
                 singleLine = true,
@@ -382,13 +387,15 @@ private fun authEmailContent(
                         onSignIn(email, password)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                 enabled = !state.isLoading,
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        strokeWidth = 2.dp,
+                    authButtonLoadingIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
                     Text(
@@ -403,7 +410,7 @@ private fun authEmailContent(
             }
 
             TextButton(
-                onClick = onToggleSignUpMode,
+                onClick = if (state.isSignUpMode) onSwitchToSignIn else onSwitchToSignUp,
                 enabled = !state.isLoading,
             ) {
                 Text(
@@ -423,6 +430,15 @@ private fun authMethodIconModifier(): Modifier =
     Modifier
         .size(30.dp)
         .padding(end = 12.dp)
+
+@Composable
+private fun authButtonLoadingIndicator(color: Color = LocalContentColor.current) {
+    CircularProgressIndicator(
+        modifier = Modifier.size(22.dp),
+        strokeWidth = 2.dp,
+        color = color,
+    )
+}
 
 @Composable
 private fun authMessageBlock(
