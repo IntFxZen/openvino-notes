@@ -113,4 +113,5 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.play.services.auth)
+    implementation(libs.koin.workmanager)
 }
