@@ -1,10 +1,8 @@
 package com.itlab.data.cloud
 
-import android.content.Context
 import android.content.Intent
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.tasks.await
 
 class AuthManager(
     private val auth: FirebaseAuth,
@@ -23,7 +21,7 @@ class AuthManager(
 
     fun getCurrentUserId(): String? = auth.currentUser?.uid
 
-    suspend fun signOut(context: Context) {
-        AuthUI.getInstance().signOut(context).await()
+    fun signOut() {
+        auth.signOut()
     }
 }

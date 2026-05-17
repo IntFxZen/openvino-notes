@@ -20,6 +20,8 @@ import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
 import com.itlab.notes.ui.auth.AuthViewModel
+import org.koin.android.ext.koin.androidApplication
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -66,5 +68,10 @@ val appModule =
         }
 
         viewModelOf(::NotesViewModel)
-        viewModelOf(::AuthViewModel)
+        viewModel {
+            AuthViewModel(
+                firebaseAuth = get(),
+                app = androidApplication(),
+            )
+        }
     }

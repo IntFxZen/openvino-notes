@@ -82,19 +82,10 @@ class AuthManagerTest {
     }
 
     @Test
-    fun `signOut should call AuthUI signOut`() =
-        runBlocking {
-            val authUI = mockk<AuthUI>()
-
-            val mockTask = Tasks.forResult<Void>(null)
-
-            every { AuthUI.getInstance() } returns authUI
-            every { authUI.signOut(any()) } returns mockTask
-
-            authManager.signOut(context)
-
-            verify { authUI.signOut(context) }
-        }
+    fun `signOut should call FirebaseAuth signOut`() {
+        authManager.signOut()
+        verify { auth.signOut() }
+    }
 
     @Test
     fun `getSignInIntent should return intent from builder`() {

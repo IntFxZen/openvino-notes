@@ -20,12 +20,13 @@ fun notesApp() {
         authScreen(authViewModel)
         return
     }
-    notesMain()
+    notesMain(authViewModel)
 }
 
 @Composable
-private fun notesMain() {
+private fun notesMain(authViewModel: AuthViewModel) {
     val viewModel: NotesViewModel = koinViewModel()
+    val authState by authViewModel.uiState.collectAsState()
     val state = viewModel.uiState
 
     when (val screen = state.screen) {
@@ -52,6 +53,8 @@ private fun notesMain() {
                 onDirectoryClick = { directory ->
                     viewModel.onEvent(NotesUiEvent.OpenDirectory(directory))
                 },
+                showSignOut = authState.isSignedIn,
+                onSignOut = { authViewModel.signOut() },
             )
         }
 
