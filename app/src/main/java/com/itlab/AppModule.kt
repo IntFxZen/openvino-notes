@@ -7,17 +7,20 @@ import com.itlab.domain.usecase.folderusecase.ObserveFoldersUseCase
 import com.itlab.domain.usecase.folderusecase.UpdateFolderUseCase
 import com.itlab.domain.usecase.noteusecase.CreateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.DeleteNoteUseCase
-import com.itlab.domain.usecase.noteusecase.GetUserIdUseCase
 import com.itlab.domain.usecase.noteusecase.GetAllFavoritesUseCase
 import com.itlab.domain.usecase.noteusecase.GetNoteUseCase
+import com.itlab.domain.usecase.noteusecase.GetUserIdUseCase
 import com.itlab.domain.usecase.noteusecase.MoveNoteToFolderUseCase
-import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesByFolderUseCase
 import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
+import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
+import com.itlab.notes.auth.AppSessionPreferences
 import com.itlab.notes.auth.ClearLocalDataOnSignOut
+import com.itlab.notes.onboarding.OnboardingPreferences
+import com.itlab.notes.onboarding.OnboardingViewModel
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
 import com.itlab.notes.ui.auth.AuthViewModel
@@ -28,6 +31,8 @@ import org.koin.dsl.module
 
 val appModule =
     module {
+        single { OnboardingPreferences(androidApplication()) }
+        single { AppSessionPreferences(androidApplication()) }
         factory { ValidateDuplicateNoteTitleUseCase(get()) }
         factory { CreateNoteUseCase(get(), get()) }
         factory { CreateFolderUseCase(get()) }
@@ -77,10 +82,12 @@ val appModule =
         }
 
         viewModelOf(::NotesViewModel)
+        viewModelOf(::OnboardingViewModel)
         viewModel {
             AuthViewModel(
                 firebaseAuth = get(),
                 app = androidApplication(),
+                appSessionPreferences = get(),
                 clearLocalDataOnSignOut = get(),
             )
         }

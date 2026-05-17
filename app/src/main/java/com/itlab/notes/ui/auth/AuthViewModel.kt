@@ -12,6 +12,7 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.itlab.notes.R
+import com.itlab.notes.auth.AppSessionPreferences
 import com.itlab.notes.auth.ClearLocalDataOnSignOut
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ enum class AuthScreenStep {
 
 data class AuthUiState(
     val step: AuthScreenStep = AuthScreenStep.ChooseMethod,
+    val isSessionReady: Boolean = false,
     /** User may enter the notes app (explicit sign-in or restored Firebase session). */
     val isSessionActive: Boolean = false,
     val continueOffline: Boolean = false,
@@ -39,6 +41,7 @@ data class AuthUiState(
 class AuthViewModel(
     private val firebaseAuth: FirebaseAuth,
     private val app: Application,
+    private val appSessionPreferences: AppSessionPreferences,
     private val clearLocalDataOnSignOut: ClearLocalDataOnSignOut,
 ) : ViewModel() {
     private var shouldActivateSession = firebaseAuth.currentUser != null
@@ -62,16 +65,32 @@ class AuthViewModel(
     private val authStateListener =
         FirebaseAuth.AuthStateListener { auth ->
             val signedIn = auth.currentUser != null
+            val sessionActive = signedIn && shouldActivateSession
             _uiState.update {
                 it.copy(
-                    isSessionActive = signedIn && shouldActivateSession,
+                    isSessionActive = sessionActive,
+                    continueOffline = if (sessionActive) false else it.continueOffline,
                     isLoading = false,
                 )
+            }
+            if (sessionActive) {
+                viewModelScope.launch { appSessionPreferences.setContinueOffline(false) }
             }
         }
 
     init {
         firebaseAuth.addAuthStateListener(authStateListener)
+        viewModelScope.launch {
+            appSessionPreferences.continueOffline.collect { offline ->
+                _uiState.update { state ->
+                    val sessionActive = firebaseAuth.currentUser != null && shouldActivateSession
+                    state.copy(
+                        continueOffline = if (sessionActive) false else offline,
+                        isSessionReady = true,
+                    )
+                }
+            }
+        }
     }
 
     override fun onCleared() {
@@ -83,6 +102,7 @@ class AuthViewModel(
         _uiState.update {
             it.copy(
                 step = AuthScreenStep.Email,
+                isSignUpMode = false,
                 errorMessage = null,
                 successMessage = null,
             )
@@ -96,22 +116,63 @@ class AuthViewModel(
                 isSignUpMode = false,
                 errorMessage = null,
                 successMessage = null,
+                isLoading = false,
             )
         }
     }
 
-    fun toggleSignUpMode() {
+    fun switchToSignUpMode() {
         _uiState.update {
             it.copy(
-                isSignUpMode = !it.isSignUpMode,
+                isSignUpMode = true,
                 errorMessage = null,
                 successMessage = null,
             )
         }
     }
 
+    fun switchToSignInMode() {
+        _uiState.update {
+            it.copy(
+                isSignUpMode = false,
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
+    }
+
+    fun backFromEmailStep() {
+        if (_uiState.value.isSignUpMode) {
+            switchToSignInMode()
+        } else {
+            backToMethodChoice()
+        }
+    }
+
     fun continueOffline() {
         _uiState.update { it.copy(continueOffline = true, errorMessage = null) }
+        viewModelScope.launch { appSessionPreferences.setContinueOffline(true) }
+    }
+
+    private suspend fun clearOfflineSession() {
+        appSessionPreferences.setContinueOffline(false)
+    }
+
+    /** Leaves offline mode and returns to the sign-in choice screen. Local notes are kept. */
+    fun exitOfflineToSignIn() {
+        viewModelScope.launch {
+            clearOfflineSession()
+            _uiState.update {
+                it.copy(
+                    step = AuthScreenStep.ChooseMethod,
+                    continueOffline = false,
+                    isSessionActive = false,
+                    isLoading = false,
+                    errorMessage = null,
+                    successMessage = null,
+                )
+            }
+        }
     }
 
     fun clearError() {
@@ -170,11 +231,10 @@ class AuthViewModel(
             }.onSuccess {
                 _uiState.update {
                     it.copy(
-                        step = AuthScreenStep.Email,
-                        isSignUpMode = false,
                         isLoading = false,
                         isSessionActive = false,
-                        successMessage = "Account created. Sign in with your email and password.",
+                        successMessage =
+                            "Account created. Switch to Sign in below when you are ready.",
                         errorMessage = null,
                     )
                 }
@@ -214,6 +274,7 @@ class AuthViewModel(
             shouldActivateSession = false
             runCatching {
                 clearLocalDataOnSignOut()
+                clearOfflineSession()
                 firebaseAuth.signOut()
                 signOutGoogle()
             }.onFailure { error ->

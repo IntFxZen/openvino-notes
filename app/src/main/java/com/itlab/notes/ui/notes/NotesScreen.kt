@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.FolderCopy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,6 +57,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.itlab.notes.onboarding.OnboardingTargets
+import com.itlab.notes.onboarding.onboardingTargetModifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -425,6 +426,7 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     FloatingActionButton(
         onClick = onAddNoteClick,
+        modifier = onboardingTargetModifier(OnboardingTargets.NOTES_FAB),
         containerColor = colors.primary,
     ) {
         Icon(
@@ -476,6 +478,7 @@ private fun notesListContent(
                     }
                 }
             }
+            val tourNoteId = notes.firstOrNull()?.id
             items(
                 items = notes,
                 key = { note -> note.id },
@@ -483,6 +486,12 @@ private fun notesListContent(
                 notesListItem(
                     note = note,
                     isSelected = note.id in selectedNoteIds,
+                    modifier =
+                        if (note.id == tourNoteId) {
+                            onboardingTargetModifier(OnboardingTargets.NOTES_NOTE_ROW)
+                        } else {
+                            Modifier
+                        },
                     onClick = {
                         if (isSelectionMode) {
                             if (note.id in selectedNoteIds) {
@@ -509,12 +518,14 @@ private fun notesListContent(
 private fun notesListItem(
     note: NoteItemUi,
     isSelected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     noteCard(
         note = note,
         isSelected = isSelected,
+        modifier = modifier,
         onClick = onClick,
         onLongClick = onLongClick,
     )
@@ -525,6 +536,7 @@ private fun notesListItem(
 private fun noteCard(
     note: NoteItemUi,
     isSelected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -542,7 +554,7 @@ private fun noteCard(
             ),
         shape = MaterialTheme.shapes.large,
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
                 .combinedClickable(
@@ -602,7 +614,10 @@ private fun searchField(
     appSearchField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.padding(vertical = 16.dp),
+        modifier =
+            Modifier
+                .padding(vertical = 16.dp)
+                .then(onboardingTargetModifier(OnboardingTargets.NOTES_SEARCH)),
         placeholderText = "Search notes",
     )
 }
