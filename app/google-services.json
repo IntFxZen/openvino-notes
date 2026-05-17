@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "524612611355",
+    "firebase_url": "https://vinotes-e17d4-default-rtdb.firebaseio.com",
     "project_id": "vinotes-e17d4",
     "storage_bucket": "vinotes-e17d4.firebasestorage.app"
   },
@@ -13,6 +14,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "524612611355-n34gqu4ff6qtf8n8ukpt4ib8lfqbnofr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.itlab.notes",
+            "certificate_hash": "d62ee3e20ee467da39a8226d8dbe74a47498f6e2"
+          }
+        },
         {
           "client_id": "524612611355-9pljln24ei6dkuokiiqrosefpehnkobc.apps.googleusercontent.com",
           "client_type": 3

@@ -1,8 +1,13 @@
 package com.itlab.notes.ui.auth
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,14 +15,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +35,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,7 +46,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,9 +69,6 @@ fun authScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val webClientId = stringResource(R.string.default_web_client_id)
     val googleSignInEnabled = webClientId.isNotBlank()
@@ -76,13 +86,12 @@ fun authScreen(
 
     val googleLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            // Google Sign-In may return RESULT_CANCELED even after a successful account pick.
             val data = result.data
             if (data == null) {
-                if (result.resultCode == Activity.RESULT_CANCELED) {
-                    viewModel.clearError()
-                } else {
+                if (result.resultCode != Activity.RESULT_CANCELED) {
                     viewModel.reportError("Google sign-in returned no data.")
+                } else {
+                    viewModel.clearError()
                 }
                 return@rememberLauncherForActivityResult
             }
@@ -108,38 +117,204 @@ fun authScreen(
             }
         }
 
+    val googleUnavailableMessage =
+        "Google sign-in requires a Web Client ID in Firebase (see default_web_client_id)."
+    val launchGoogleSignIn = {
+        if (!googleSignInEnabled) {
+            viewModel.reportError(googleUnavailableMessage)
+        } else {
+            viewModel.clearError()
+            viewModel.clearSuccess()
+            googleLauncher.launch(googleSignInClient.signInIntent)
+        }
+    }
+
     Scaffold { padding ->
+        AnimatedContent(
+            targetState = state.step,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "auth_step",
+        ) { step ->
+            when (step) {
+                AuthScreenStep.ChooseMethod ->
+                    authMethodChoiceContent(
+                        isLoading = state.isLoading,
+                        googleSignInEnabled = googleSignInEnabled,
+                        onGoogleClick = launchGoogleSignIn,
+                        onEmailClick = { viewModel.openEmailStep() },
+                        onContinueOffline = { viewModel.continueOffline() },
+                        errorMessage = state.errorMessage,
+                    )
+                AuthScreenStep.Email ->
+                    authEmailContent(
+                        state = state,
+                        onBack = { viewModel.backToMethodChoice() },
+                        onSignIn = viewModel::signInWithEmail,
+                        onSignUp = viewModel::signUpWithEmail,
+                        onToggleSignUpMode = { viewModel.toggleSignUpMode() },
+                        onClearError = { viewModel.clearError() },
+                        onClearSuccess = { viewModel.clearSuccess() },
+                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun authMethodChoiceContent(
+    isLoading: Boolean,
+    googleSignInEnabled: Boolean,
+    onGoogleClick: () -> Unit,
+    onEmailClick: () -> Unit,
+    onContinueOffline: () -> Unit,
+    errorMessage: String?,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Notes",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Choose how you want to sign in",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(40.dp))
+
+        authMessageBlock(errorMessage = errorMessage, successMessage = null)
+
+        OutlinedButton(
+            onClick = onGoogleClick,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading && googleSignInEnabled,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_google),
+                    contentDescription = null,
+                    modifier = authMethodIconModifier(),
+                    tint = Color.Unspecified,
+                )
+                Text("Continue with Google")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = onEmailClick,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Email,
+                contentDescription = null,
+                modifier = authMethodIconModifier(),
+            )
+            Text("Sign in with Email")
+        }
+
+        if (!googleSignInEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Google sign-in requires a Web Client ID in Firebase (see default_web_client_id).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TextButton(
+            onClick = onContinueOffline,
+            enabled = !isLoading,
+        ) {
+            Text("Continue without signing in")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun authEmailContent(
+    state: AuthUiState,
+    onBack: () -> Unit,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onToggleSignUpMode: () -> Unit,
+    onClearError: () -> Unit,
+    onClearSuccess: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text =
+                        if (state.isSignUpMode) {
+                            "Create account"
+                        } else {
+                            "Sign in"
+                        },
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack, enabled = !state.isLoading) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                    )
+                }
+            },
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+        )
+
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = stringResource(R.string.auth_title),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.auth_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-
             OutlinedTextField(
                 value = email,
                 onValueChange = {
                     email = it
-                    viewModel.clearError()
+                    onClearError()
+                    onClearSuccess()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.auth_email_label)) },
+                label = { Text("Email") },
                 singleLine = true,
                 keyboardOptions =
                     KeyboardOptions(
@@ -153,10 +328,11 @@ fun authScreen(
                 value = password,
                 onValueChange = {
                     password = it
-                    viewModel.clearError()
+                    onClearError()
+                    onClearSuccess()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.auth_password_label)) },
+                label = { Text("Password") },
                 singleLine = true,
                 visualTransformation =
                     if (passwordVisible) {
@@ -175,9 +351,9 @@ fun authScreen(
                                 },
                             contentDescription =
                                 if (passwordVisible) {
-                                    stringResource(R.string.auth_hide_password)
+                                    "Hide password"
                                 } else {
-                                    stringResource(R.string.auth_show_password)
+                                    "Show password"
                                 },
                         )
                     }
@@ -190,25 +366,20 @@ fun authScreen(
                 enabled = !state.isLoading,
             )
 
-            state.errorMessage?.let { message ->
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            Spacer(modifier = Modifier.height(12.dp))
+            authMessageBlock(
+                errorMessage = state.errorMessage,
+                successMessage = state.successMessage,
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
                     if (state.isSignUpMode) {
-                        viewModel.signUpWithEmail(email, password)
+                        onSignUp(email, password)
                     } else {
-                        viewModel.signInWithEmail(email, password)
+                        onSignIn(email, password)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -223,60 +394,58 @@ fun authScreen(
                     Text(
                         text =
                             if (state.isSignUpMode) {
-                                stringResource(R.string.auth_create_account)
+                                "Create account"
                             } else {
-                                stringResource(R.string.auth_sign_in)
+                                "Sign in"
                             },
                     )
                 }
             }
 
             TextButton(
-                onClick = { viewModel.toggleSignUpMode() },
+                onClick = onToggleSignUpMode,
                 enabled = !state.isLoading,
             ) {
                 Text(
                     text =
                         if (state.isSignUpMode) {
-                            stringResource(R.string.auth_already_have_account)
+                            "Already have an account? Sign in"
                         } else {
-                            stringResource(R.string.auth_need_account)
+                            "Need an account? Create one"
                         },
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = {
-                    viewModel.clearError()
-                    googleLauncher.launch(googleSignInClient.signInIntent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isLoading && googleSignInEnabled,
-            ) {
-                Text(stringResource(R.string.auth_google))
-            }
-
-            if (!googleSignInEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.auth_google_unavailable),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            TextButton(
-                onClick = { viewModel.continueOffline() },
-                enabled = !state.isLoading,
-            ) {
-                Text(stringResource(R.string.auth_continue_offline))
-            }
         }
+    }
+}
+
+private fun authMethodIconModifier(): Modifier =
+    Modifier
+        .size(30.dp)
+        .padding(end = 12.dp)
+
+@Composable
+private fun authMessageBlock(
+    errorMessage: String?,
+    successMessage: String?,
+) {
+    when {
+        !errorMessage.isNullOrBlank() ->
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        !successMessage.isNullOrBlank() ->
+            Text(
+                text = successMessage,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
     }
 }
 
