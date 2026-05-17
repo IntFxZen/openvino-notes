@@ -3,6 +3,7 @@ package com.itlab.notes.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import com.itlab.notes.ui.auth.AuthViewModel
 import com.itlab.notes.ui.auth.authScreen
 import com.itlab.notes.ui.editor.editorScreen
@@ -16,11 +17,14 @@ import org.koin.androidx.compose.koinViewModel
 fun notesApp() {
     val authViewModel: AuthViewModel = koinViewModel()
     val authState by authViewModel.uiState.collectAsState()
-    if (!authState.isSignedIn && !authState.continueOffline) {
+    if (!authState.isSessionActive && !authState.continueOffline) {
         authScreen(authViewModel)
         return
     }
-    notesMain(authViewModel)
+    val sessionKey = authViewModel.sessionKey ?: return
+    key(sessionKey) {
+        notesMain(authViewModel)
+    }
 }
 
 @Composable
@@ -53,7 +57,7 @@ private fun notesMain(authViewModel: AuthViewModel) {
                 onDirectoryClick = { directory ->
                     viewModel.onEvent(NotesUiEvent.OpenDirectory(directory))
                 },
-                showSignOut = authState.isSignedIn,
+                showSignOut = authState.isSessionActive,
                 onSignOut = { authViewModel.signOut() },
             )
         }
