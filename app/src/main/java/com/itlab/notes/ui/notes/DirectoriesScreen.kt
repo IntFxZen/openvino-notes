@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderCopy
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -82,8 +83,10 @@ import com.itlab.notes.ui.toSingleLineText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import com.itlab.notes.R
 
 private const val DIRECTORY_NAME_TAKEN_ERROR = "A directory with this name already exists"
 
@@ -97,6 +100,8 @@ fun directoriesScreen(
     onDeleteDirectory: (DirectoryItemUi) -> Unit,
     onRenameDirectory: (DirectoryItemUi, String) -> Unit,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
+    showSignOut: Boolean = false,
+    onSignOut: () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
@@ -119,6 +124,8 @@ fun directoriesScreen(
         containerColor = colors.background,
         topBar = {
             directoriesTopBar(
+                showSignOut = showSignOut,
+                onSignOut = onSignOut,
                 onAddDirectoryClick = { showCreateDialog = true },
             )
         },
@@ -294,11 +301,24 @@ internal fun universalBasicAlertDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun directoriesTopBar(onAddDirectoryClick: () -> Unit) {
+private fun directoriesTopBar(
+    showSignOut: Boolean,
+    onSignOut: () -> Unit,
+    onAddDirectoryClick: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     CenterAlignedTopAppBar(
         title = { Text("Directories", color = colors.onSurface) },
         actions = {
+            if (showSignOut) {
+                IconButton(onClick = onSignOut) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Logout,
+                        contentDescription = stringResource(R.string.sign_out),
+                        tint = colors.onSurface,
+                    )
+                }
+            }
             IconButton(onClick = onAddDirectoryClick) {
                 Icon(
                     Icons.Rounded.Add,

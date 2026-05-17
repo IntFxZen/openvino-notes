@@ -4,9 +4,13 @@ import com.itlab.data.cloud.AuthManager
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -42,4 +46,15 @@ class AuthRepositoryImplTest {
         assertNull(result)
         verify(exactly = 1) { authManager.getCurrentUserId() }
     }
+
+    @Test
+    fun `signOut should delegate to authManager`() =
+        runTest {
+            every { authManager.signOut() } returns Unit
+
+            val result = authRepository.signOut()
+
+            assertTrue(result.isSuccess)
+            verify(exactly = 1) { authManager.signOut() }
+        }
 }

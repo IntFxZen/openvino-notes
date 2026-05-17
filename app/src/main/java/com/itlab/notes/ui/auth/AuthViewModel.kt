@@ -1,8 +1,12 @@
 package com.itlab.notes.ui.auth
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.itlab.notes.R
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -25,6 +29,7 @@ data class AuthUiState(
 
 class AuthViewModel(
     private val firebaseAuth: FirebaseAuth,
+    private val app: Application,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState(isSignedIn = firebaseAuth.currentUser != null))
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -127,6 +132,42 @@ class AuthViewModel(
                 }
             }
         }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                firebaseAuth.signOut()
+                signOutGoogle()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Sign out failed.",
+                    )
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    continueOffline = false,
+                    isLoading = false,
+                    isSignedIn = firebaseAuth.currentUser != null,
+                )
+            }
+        }
+    }
+
+    private suspend fun signOutGoogle() {
+        val webClientId = app.getString(R.string.default_web_client_id)
+        if (webClientId.isBlank()) return
+        val options =
+            GoogleSignInOptions
+                .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(webClientId)
+                .requestEmail()
+                .build()
+        GoogleSignIn.getClient(app, options).signOut().await()
     }
 
     private fun mapAuthError(error: Throwable): String =
