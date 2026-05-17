@@ -2,9 +2,9 @@ package com.itlab.domain.usecase.noteusecase
 
 import com.itlab.domain.model.ContentItem
 import com.itlab.domain.repository.NotesRepository
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 import kotlin.time.Clock
-import kotlinx.coroutines.flow.first
 
 class DuplicateNoteUseCase(
     private val repo: NotesRepository,
