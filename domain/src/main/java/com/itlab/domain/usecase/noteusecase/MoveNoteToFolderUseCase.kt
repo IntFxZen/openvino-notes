@@ -3,8 +3,8 @@ package com.itlab.domain.usecase.noteusecase
 import com.itlab.domain.repository.NoteFolderRepository
 import com.itlab.domain.repository.NotesRepository
 import com.itlab.domain.usecase.requireNotBlank
-import kotlin.time.Clock
 import kotlinx.coroutines.flow.first
+import kotlin.time.Clock
 
 class MoveNoteToFolderUseCase(
     private val notesRepo: NotesRepository,
