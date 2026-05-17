@@ -16,6 +16,7 @@ import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
+import com.itlab.notes.auth.ClearLocalDataOnSignOut
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
 import com.itlab.notes.ui.auth.AuthViewModel
@@ -45,6 +46,14 @@ val appModule =
         factory { UpdateFolderUseCase(get()) }
         factory { GetFolderUseCase(get()) }
         factory {
+            ClearLocalDataOnSignOut(
+                observeNotesUseCase = get(),
+                deleteNoteUseCase = get(),
+                observeFoldersUseCase = get(),
+                deleteFolderUseCase = get(),
+            )
+        }
+        factory {
             NotesUseCases(
                 createFolderUseCase = get(),
                 deleteFolderUseCase = get(),
@@ -69,6 +78,7 @@ val appModule =
             AuthViewModel(
                 firebaseAuth = get(),
                 app = androidApplication(),
+                clearLocalDataOnSignOut = get(),
             )
         }
     }

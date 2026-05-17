@@ -83,7 +83,6 @@ import com.itlab.notes.ui.toSingleLineText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.itlab.notes.R
@@ -314,7 +313,7 @@ private fun directoriesTopBar(
                 IconButton(onClick = onSignOut) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.Logout,
-                        contentDescription = stringResource(R.string.sign_out),
+                        contentDescription = "Sign out",
                         tint = colors.onSurface,
                     )
                 }

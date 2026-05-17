@@ -2,6 +2,7 @@ package com.itlab.data.di
 
 import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.storage.FirebaseStorage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -28,6 +29,8 @@ class DataModuleTest : KoinTest {
     fun `verify dataModule dependencies`() {
         mockkStatic(FirebaseAuth::class)
         every { FirebaseAuth.getInstance() } returns mockk(relaxed = true)
+        mockkStatic(FirebaseStorage::class)
+        every { FirebaseStorage.getInstance() } returns mockk(relaxed = true)
 
         koinApplication {
             androidContext(mockk<Context>(relaxed = true))

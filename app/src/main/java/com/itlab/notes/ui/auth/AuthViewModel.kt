@@ -6,12 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
-import com.itlab.notes.R
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
+import com.itlab.notes.R
+import com.itlab.notes.auth.ClearLocalDataOnSignOut
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,26 +20,51 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+enum class AuthScreenStep {
+    ChooseMethod,
+    Email,
+}
+
 data class AuthUiState(
-    val isSignedIn: Boolean = false,
+    val step: AuthScreenStep = AuthScreenStep.ChooseMethod,
+    /** User may enter the notes app (explicit sign-in or restored Firebase session). */
+    val isSessionActive: Boolean = false,
     val continueOffline: Boolean = false,
     val isLoading: Boolean = false,
     val isSignUpMode: Boolean = false,
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 )
 
 class AuthViewModel(
     private val firebaseAuth: FirebaseAuth,
     private val app: Application,
+    private val clearLocalDataOnSignOut: ClearLocalDataOnSignOut,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(AuthUiState(isSignedIn = firebaseAuth.currentUser != null))
+    private var shouldActivateSession = firebaseAuth.currentUser != null
+
+    private val _uiState =
+        MutableStateFlow(
+            AuthUiState(
+                isSessionActive = firebaseAuth.currentUser != null && shouldActivateSession,
+            ),
+        )
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    val sessionKey: String?
+        get() =
+            when {
+                _uiState.value.continueOffline -> OFFLINE_SESSION_KEY
+                _uiState.value.isSessionActive -> firebaseAuth.currentUser?.uid
+                else -> null
+            }
 
     private val authStateListener =
         FirebaseAuth.AuthStateListener { auth ->
+            val signedIn = auth.currentUser != null
             _uiState.update {
                 it.copy(
-                    isSignedIn = auth.currentUser != null,
+                    isSessionActive = signedIn && shouldActivateSession,
                     isLoading = false,
                 )
             }
@@ -53,8 +79,35 @@ class AuthViewModel(
         super.onCleared()
     }
 
+    fun openEmailStep() {
+        _uiState.update {
+            it.copy(
+                step = AuthScreenStep.Email,
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
+    }
+
+    fun backToMethodChoice() {
+        _uiState.update {
+            it.copy(
+                step = AuthScreenStep.ChooseMethod,
+                isSignUpMode = false,
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
+    }
+
     fun toggleSignUpMode() {
-        _uiState.update { it.copy(isSignUpMode = !it.isSignUpMode, errorMessage = null) }
+        _uiState.update {
+            it.copy(
+                isSignUpMode = !it.isSignUpMode,
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
     }
 
     fun continueOffline() {
@@ -63,6 +116,10 @@ class AuthViewModel(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 
     fun reportError(message: String) {
@@ -79,10 +136,12 @@ class AuthViewModel(
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            shouldActivateSession = true
             runCatching {
                 firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await()
             }.onFailure { error ->
+                shouldActivateSession = false
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -103,9 +162,22 @@ class AuthViewModel(
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            shouldActivateSession = false
             runCatching {
                 firebaseAuth.createUserWithEmailAndPassword(trimmedEmail, password).await()
+                firebaseAuth.signOut()
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(
+                        step = AuthScreenStep.Email,
+                        isSignUpMode = false,
+                        isLoading = false,
+                        isSessionActive = false,
+                        successMessage = "Account created. Sign in with your email and password.",
+                        errorMessage = null,
+                    )
+                }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -119,11 +191,13 @@ class AuthViewModel(
 
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            shouldActivateSession = true
             runCatching {
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
                 firebaseAuth.signInWithCredential(credential).await()
             }.onFailure { error ->
+                shouldActivateSession = false
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -136,8 +210,10 @@ class AuthViewModel(
 
     fun signOut() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            shouldActivateSession = false
             runCatching {
+                clearLocalDataOnSignOut()
                 firebaseAuth.signOut()
                 signOutGoogle()
             }.onFailure { error ->
@@ -150,9 +226,10 @@ class AuthViewModel(
             }
             _uiState.update {
                 it.copy(
+                    step = AuthScreenStep.ChooseMethod,
                     continueOffline = false,
                     isLoading = false,
-                    isSignedIn = firebaseAuth.currentUser != null,
+                    isSessionActive = false,
                 )
             }
         }
@@ -182,4 +259,8 @@ class AuthViewModel(
                 "An account with this email already exists. Sign in instead."
             else -> error.message ?: "Authentication failed. Please try again."
         }
+
+    companion object {
+        const val OFFLINE_SESSION_KEY = "offline"
+    }
 }
