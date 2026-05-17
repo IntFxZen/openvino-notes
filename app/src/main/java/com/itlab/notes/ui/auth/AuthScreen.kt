@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.itlab.notes.R
@@ -60,7 +61,7 @@ fun authScreen(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val webClientId = stringResource(R.string.default_web_client_id)
-    val googleSignInEnabled = webClientId.isNotBlank() && webClientId != "YOUR_WEB_CLIENT_ID"
+    val googleSignInEnabled = webClientId.isNotBlank()
 
     val googleSignInClient =
         remember(context, webClientId) {
@@ -75,24 +76,34 @@ fun authScreen(
 
     val googleLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != Activity.RESULT_OK) {
-                viewModel.clearError()
+            // Google Sign-In may return RESULT_CANCELED even after a successful account pick.
+            val data = result.data
+            if (data == null) {
+                if (result.resultCode == Activity.RESULT_CANCELED) {
+                    viewModel.clearError()
+                } else {
+                    viewModel.reportError("Google sign-in returned no data.")
+                }
                 return@rememberLauncherForActivityResult
             }
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            runCatching {
-                val account = task.getResult(ApiException::class.java)
+            try {
+                val account =
+                    GoogleSignIn
+                        .getSignedInAccountFromIntent(data)
+                        .getResult(ApiException::class.java)
                 val token = account.idToken
                 if (token.isNullOrBlank()) {
-                    viewModel.reportError("Google sign-in did not return a token.")
+                    viewModel.reportError(
+                        "Google sign-in did not return a token. Check Web Client ID in Firebase.",
+                    )
                 } else {
                     viewModel.signInWithGoogle(token)
                 }
-            }.onFailure { error ->
-                if (error is ApiException && error.statusCode == 12501) {
+            } catch (error: ApiException) {
+                if (error.statusCode == GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
                     viewModel.clearError()
                 } else {
-                    viewModel.reportError(error.message ?: "Google sign-in failed.")
+                    viewModel.reportError(mapGoogleSignInError(error))
                 }
             }
         }
@@ -238,6 +249,7 @@ fun authScreen(
 
             OutlinedButton(
                 onClick = {
+                    viewModel.clearError()
                     googleLauncher.launch(googleSignInClient.signInIntent)
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -267,3 +279,10 @@ fun authScreen(
         }
     }
 }
+
+private fun mapGoogleSignInError(error: ApiException): String =
+    when (error.statusCode) {
+        GoogleSignInStatusCodes.DEVELOPER_ERROR ->
+            "Google Sign-In configuration error. Add SHA-1 fingerprint in Firebase Console."
+        else -> error.message ?: "Google sign-in failed (code ${error.statusCode})."
+    }
