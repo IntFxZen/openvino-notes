@@ -58,7 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.itlab.notes.onboarding.OnboardingTargets
-import com.itlab.notes.onboarding.onboardingTargetModifier
+import com.itlab.notes.onboarding.onboardingTarget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,7 +426,7 @@ private fun notesFab(onAddNoteClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     FloatingActionButton(
         onClick = onAddNoteClick,
-        modifier = onboardingTargetModifier(OnboardingTargets.NOTES_FAB),
+        modifier = Modifier.onboardingTarget(OnboardingTargets.NOTES_FAB),
         containerColor = colors.primary,
     ) {
         Icon(
@@ -488,7 +488,7 @@ private fun notesListContent(
                     isSelected = note.id in selectedNoteIds,
                     modifier =
                         if (note.id == tourNoteId) {
-                            onboardingTargetModifier(OnboardingTargets.NOTES_NOTE_ROW)
+                            Modifier.onboardingTarget(OnboardingTargets.NOTES_NOTE_ROW)
                         } else {
                             Modifier
                         },
@@ -617,7 +617,7 @@ private fun searchField(
         modifier =
             Modifier
                 .padding(vertical = 16.dp)
-                .then(onboardingTargetModifier(OnboardingTargets.NOTES_SEARCH)),
+                .onboardingTarget(OnboardingTargets.NOTES_SEARCH),
         placeholderText = "Search notes",
     )
 }

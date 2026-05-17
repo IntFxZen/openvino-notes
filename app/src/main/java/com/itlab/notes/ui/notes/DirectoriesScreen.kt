@@ -85,7 +85,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.itlab.notes.onboarding.OnboardingTargets
-import com.itlab.notes.onboarding.onboardingTargetModifier
+import com.itlab.notes.onboarding.onboardingTarget
 import com.itlab.notes.ui.toSingleLineText
 
 private const val DIRECTORY_NAME_TAKEN_ERROR = "A directory with this name already exists"
@@ -322,7 +322,7 @@ private fun directoriesTopBar(
                     onClick = if (showSignOut) onSignOut else onReturnToSignIn,
                     modifier =
                         if (showSignOut) {
-                            onboardingTargetModifier(OnboardingTargets.DIRECTORIES_SIGN_OUT)
+                            Modifier.onboardingTarget(OnboardingTargets.DIRECTORIES_SIGN_OUT)
                         } else {
                             Modifier
                         },
@@ -341,7 +341,7 @@ private fun directoriesTopBar(
             }
             IconButton(
                 onClick = onAddDirectoryClick,
-                modifier = onboardingTargetModifier(OnboardingTargets.DIRECTORIES_ADD),
+                modifier = Modifier.onboardingTarget(OnboardingTargets.DIRECTORIES_ADD),
             ) {
                 Icon(
                     Icons.Rounded.Add,
@@ -410,7 +410,7 @@ private fun directoriesList(
         directorySearchBar(
             query = searchQuery,
             onQueryChange = onSearchQueryChange,
-            modifier = onboardingTargetModifier(OnboardingTargets.DIRECTORIES_SEARCH),
+            modifier = Modifier.onboardingTarget(OnboardingTargets.DIRECTORIES_SEARCH),
         )
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -596,7 +596,7 @@ private fun directoriesBlock(
                             .padding(horizontal = 12.dp, vertical = 0.dp)
                             .then(
                                 if (dir.id == tourHighlightDirectoryId) {
-                                    onboardingTargetModifier(OnboardingTargets.DIRECTORIES_FOLDER_ROW)
+                                    Modifier.onboardingTarget(OnboardingTargets.DIRECTORIES_FOLDER_ROW)
                                 } else {
                                     Modifier
                                 },

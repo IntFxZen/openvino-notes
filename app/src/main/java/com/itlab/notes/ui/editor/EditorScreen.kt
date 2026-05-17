@@ -854,7 +854,7 @@ private fun editorPlainTextField(
                 textStyle = textStyle,
                 singleLine = singleLine,
                 interactionSource = interactionSource,
-                innerTextField = innerTextField,
+                content = innerTextField,
             )
         },
     )
@@ -867,12 +867,12 @@ private fun editorPlainTextFieldDecoration(
     textStyle: TextStyle,
     singleLine: Boolean,
     interactionSource: MutableInteractionSource,
-    innerTextField: @Composable () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     TextFieldDefaults.DecorationBox(
         value = value,
-        innerTextField = innerTextField,
+        innerTextField = content,
         enabled = true,
         singleLine = singleLine,
         visualTransformation = VisualTransformation.None,
@@ -1042,7 +1042,7 @@ private fun editorContentField(
                 textStyle = textStyle,
                 singleLine = false,
                 interactionSource = interactionSource,
-                innerTextField = innerTextField,
+                content = innerTextField,
             )
         },
     )

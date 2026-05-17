@@ -210,7 +210,7 @@ private fun authMethodChoiceContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_google),
                     contentDescription = null,
-                    modifier = authMethodIconModifier(),
+                    modifier = Modifier.authMethodIcon(),
                     tint = Color.Unspecified,
                 )
                 Text("Continue with Google")
@@ -230,7 +230,7 @@ private fun authMethodChoiceContent(
             Icon(
                 imageVector = Icons.Rounded.Email,
                 contentDescription = null,
-                modifier = authMethodIconModifier(),
+                modifier = Modifier.authMethodIcon(),
             )
             Text("Sign in with Email")
         }
@@ -426,9 +426,8 @@ private fun authEmailContent(
     }
 }
 
-private fun authMethodIconModifier(): Modifier =
-    Modifier
-        .size(30.dp)
+private fun Modifier.authMethodIcon(): Modifier =
+    size(30.dp)
         .padding(end = 12.dp)
 
 @Composable

@@ -29,6 +29,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,7 +157,11 @@ private fun welcomePagerIndicator(
     val colors = MaterialTheme.colorScheme
     val activeColor = colors.primary
     val inactiveColor = colors.onSurfaceVariant.copy(alpha = 0.35f)
-    val scrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    val scrollPosition by remember {
+        derivedStateOf {
+            pagerState.currentPage + pagerState.currentPageOffsetFraction
+        }
+    }
 
     Row(
         modifier = modifier,

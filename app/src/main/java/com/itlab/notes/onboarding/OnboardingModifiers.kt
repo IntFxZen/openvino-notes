@@ -13,9 +13,9 @@ val LocalOnboardingRegistrar =
     }
 
 @Composable
-fun onboardingTargetModifier(key: String): Modifier {
-    val registrar = LocalOnboardingRegistrar.current ?: return Modifier
-    return Modifier.onGloballyPositioned { coordinates ->
+fun Modifier.onboardingTarget(key: String): Modifier {
+    val registrar = LocalOnboardingRegistrar.current ?: return this
+    return onGloballyPositioned { coordinates ->
         val bounds = coordinates.boundsInRoot()
         registrar(
             key,
