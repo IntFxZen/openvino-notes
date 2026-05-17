@@ -1,4 +1,4 @@
-package com.itlab.notes.di
+package com.itlab
 
 import com.itlab.domain.usecase.folderusecase.CreateFolderUseCase
 import com.itlab.domain.usecase.folderusecase.DeleteFolderUseCase
@@ -19,6 +19,7 @@ import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.ui.NotesUseCases
 import com.itlab.notes.ui.NotesViewModel
+import com.itlab.notes.ui.auth.AuthViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -65,4 +66,5 @@ val appModule =
         }
 
         viewModelOf(::NotesViewModel)
+        viewModelOf(::AuthViewModel)
     }

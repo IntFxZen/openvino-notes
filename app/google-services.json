@@ -1,22 +1,28 @@
-﻿{
+{
   "project_info": {
-    "project_number": "123456789",
-    "project_id": "mock-id"
+    "project_number": "524612611355",
+    "project_id": "vinotes-e17d4",
+    "storage_bucket": "vinotes-e17d4.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789:android:mock",
+        "mobilesdk_app_id": "1:524612611355:android:1267c2c7d06e8bf32bb7be",
         "android_client_info": {
           "package_name": "com.itlab.notes"
         }
       },
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "mock-key"
+          "current_key": "AIzaSyDO_dJft5Bw4vA3FnsQ5tLh8wMrseX-tUk"
         }
       ],
-      "services": {}
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"
