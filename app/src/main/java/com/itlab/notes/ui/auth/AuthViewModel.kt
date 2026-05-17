@@ -158,9 +158,10 @@ class AuthViewModel(
         appSessionPreferences.setContinueOffline(false)
     }
 
-    /** Leaves offline mode and returns to the sign-in choice screen. Local notes are kept. */
+    /** Leaves offline mode and returns to the sign-in choice screen. */
     fun exitOfflineToSignIn() {
         viewModelScope.launch {
+            runCatching { clearLocalDataOnSignOut() }
             clearOfflineSession()
             _uiState.update {
                 it.copy(
@@ -201,6 +202,7 @@ class AuthViewModel(
             shouldActivateSession = true
             runCatching {
                 firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await()
+                clearLocalDataOnSignOut()
             }.onFailure { error ->
                 shouldActivateSession = false
                 _uiState.update {
@@ -256,6 +258,7 @@ class AuthViewModel(
             runCatching {
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
                 firebaseAuth.signInWithCredential(credential).await()
+                clearLocalDataOnSignOut()
             }.onFailure { error ->
                 shouldActivateSession = false
                 _uiState.update {
