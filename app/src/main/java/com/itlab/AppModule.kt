@@ -34,17 +34,18 @@ val appModule =
         single { OnboardingPreferences(androidApplication()) }
         single { AppSessionPreferences(androidApplication()) }
         factory { ValidateDuplicateNoteTitleUseCase(get()) }
-        factory { CreateNoteUseCase(get(), get()) }
+        factory { CreateNoteUseCase(get()) }
         factory { CreateFolderUseCase(get()) }
         factory { DeleteFolderUseCase(get(), get()) }
         factory { DeleteNoteUseCase(get()) }
-        factory { UpdateNoteUseCase(get(), get()) }
+        factory { UpdateNoteUseCase(get()) }
         factory { UpdateFolderUseCase(get()) }
         factory { GetFolderUseCase(get()) }
         factory { ObserveNotesByFolderUseCase(get()) }
         factory { ObserveFoldersUseCase(get()) }
         factory { MoveNoteToFolderUseCase(get(), get()) }
         factory { ObserveNotesUseCase(get()) }
+        factory { GetUserIdUseCase(get()) }
         factory { SearchNotesUseCase(get()) }
         factory { SwitchFavoriteUseCase(get()) }
         factory { GetAllFavoritesUseCase(get()) }
@@ -72,6 +73,7 @@ val appModule =
                 getFolderUseCase = get(),
                 moveNoteToFolderUseCase = get(),
                 observeNotesUseCase = get(),
+                getUserIdUseCase = get(),
                 searchNotesUseCase = get(),
                 switchFavoriteUseCase = get(),
                 getAllFavoritesUseCase = get(),

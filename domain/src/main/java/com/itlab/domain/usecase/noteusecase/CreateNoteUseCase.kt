@@ -2,28 +2,30 @@ package com.itlab.domain.usecase.noteusecase
 
 import com.itlab.domain.model.Note
 import com.itlab.domain.repository.NotesRepository
+import kotlinx.coroutines.flow.first
+import java.util.UUID
 import kotlin.time.Clock
 
 class CreateNoteUseCase(
     private val repo: NotesRepository,
-    private val validateDuplicateNoteTitle: ValidateDuplicateNoteTitleUseCase,
 ) {
     suspend operator fun invoke(note: Note): Result<String> =
         runCatching {
             val normalizedTitle = note.title.trim()
             val hasDuplicateTitle =
-                validateDuplicateNoteTitle(
-                    title = normalizedTitle,
-                    folderId = note.folderId,
-                )
+                repo.observeNotes().first().any { existing ->
+                    existing.folderId == note.folderId &&
+                        existing.title.trim().equals(normalizedTitle, ignoreCase = true)
+                }
             require(!hasDuplicateTitle) { "Note with title '$normalizedTitle' already exists in this folder" }
             val now = Clock.System.now()
-            val noteToPersist =
+
+            val note =
                 note.copy(
-                    title = normalizedTitle,
+                    id = UUID.randomUUID().toString(),
+                    createdAt = now,
                     updatedAt = now,
                 )
-            repo.createNote(noteToPersist)
-            noteToPersist.id
+            repo.createNote(note)
         }
 }

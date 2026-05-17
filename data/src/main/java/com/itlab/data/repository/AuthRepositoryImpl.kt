@@ -7,9 +7,4 @@ class AuthRepositoryImpl(
     private val authManager: AuthManager,
 ) : AuthRepository {
     override fun getCurrentUserId(): String? = authManager.getCurrentUserId()
-
-    override suspend fun signOut(): Result<Unit> =
-        runCatching {
-            authManager.signOut()
-        }
 }

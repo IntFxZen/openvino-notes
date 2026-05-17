@@ -9,9 +9,6 @@ import kotlinx.coroutines.flow.map
 class SearchNotesUseCase(
     private val repo: NotesRepository,
 ) {
-    /**
-     * @param folderId when set, limits results to notes in that folder (for search inside a directory).
-     */
     operator fun invoke(
         query: String,
         folderId: String? = null,
@@ -20,13 +17,9 @@ class SearchNotesUseCase(
         if (normalizedQuery.isBlank()) return repo.observeNotes()
 
         return repo.observeNotes().map { notes ->
-            val scoped =
-                if (folderId == null) {
-                    notes
-                } else {
-                    notes.filter { it.folderId == folderId }
-                }
-            scoped.filter { note -> note.matches(normalizedQuery) }
+            notes
+                .filter { note -> folderId == null || note.folderId == folderId }
+                .filter { note -> note.matches(normalizedQuery) }
         }
     }
 

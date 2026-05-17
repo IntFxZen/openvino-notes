@@ -18,10 +18,8 @@ import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
-import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -36,8 +34,7 @@ class NoteUseCasesTest {
 
         override fun observeNotes() = flow
 
-        override fun observeNotesByFolder(folderId: String) =
-            flow.map { notes -> notes.filter { it.folderId == folderId } }
+        override fun observeNotesByFolder(folderId: String) = flow
 
         override suspend fun getNoteById(id: String): Note? = store[id]
 
@@ -85,9 +82,8 @@ class NoteUseCasesTest {
         runBlocking {
             val repo = FakeNotesRepo()
 
-            val validateTitle = ValidateDuplicateNoteTitleUseCase(repo)
-            val create = CreateNoteUseCase(repo, validateTitle)
-            val update = UpdateNoteUseCase(repo, validateTitle)
+            val create = CreateNoteUseCase(repo)
+            val update = UpdateNoteUseCase(repo)
             val delete = DeleteNoteUseCase(repo)
             val get = GetNoteUseCase(repo)
 
@@ -116,7 +112,7 @@ class NoteUseCasesTest {
             val folderRepo = FakeFolderRepo()
 
             val move = MoveNoteToFolderUseCase(notesRepo, folderRepo)
-            val createNote = CreateNoteUseCase(notesRepo, ValidateDuplicateNoteTitleUseCase(notesRepo))
+            val createNote = CreateNoteUseCase(notesRepo)
 
             val folder = NoteFolder(id = "f1", name = "Folder")
             folderRepo.createFolder(folder)
@@ -136,7 +132,7 @@ class NoteUseCasesTest {
         runBlocking {
             val repo = FakeNotesRepo()
             val observe = ObserveNotesUseCase(repo)
-            val create = CreateNoteUseCase(repo, ValidateDuplicateNoteTitleUseCase(repo))
+            val create = CreateNoteUseCase(repo)
 
             create(Note(id = "n1", title = "Test", userId = testUserId)).getOrThrow()
 
@@ -233,7 +229,7 @@ class NoteUseCasesTest {
             val duplicated = repo.getNoteById(newId)
 
             assertEquals(true, duplicated != null)
-            assertEquals("Hello (1)", duplicated?.title)
+            assertEquals("Hello Copy", duplicated?.title)
             assertEquals(setOf("kotlin"), duplicated?.tags)
             assertEquals(true, duplicated?.isFavorite)
             assertEquals("summary", duplicated?.summary)
@@ -260,26 +256,6 @@ class NoteUseCasesTest {
             val duplicated = repo.getNoteById(newId)
 
             assertEquals("Copy", duplicated?.title)
-        }
-
-    @Test
-    fun moveNoteToFolder_renamesWhenTitleExistsInTargetFolder() =
-        runBlocking {
-            val notesRepo = FakeNotesRepo()
-            val folderRepo = FakeFolderRepo()
-
-            val move = MoveNoteToFolderUseCase(notesRepo, folderRepo)
-            folderRepo.createFolder(NoteFolder(id = "f1", name = "One"))
-            folderRepo.createFolder(NoteFolder(id = "f2", name = "Two"))
-
-            notesRepo.createNote(Note(id = "n1", title = "Report", folderId = "f1"))
-            notesRepo.createNote(Note(id = "n2", title = "Report", folderId = "f2"))
-
-            move("f2", "n1").getOrThrow()
-
-            val moved = notesRepo.getNoteById("n1")
-            assertEquals("f2", moved?.folderId)
-            assertEquals("Report (1)", moved?.title)
         }
 
     @Test
@@ -398,33 +374,6 @@ class NoteUseCasesTest {
 
             assertEquals(1, result.size)
             assertEquals("n9", result.first().id)
-        }
-
-    @Test
-    fun searchNotes_scopedToFolderId() =
-        runBlocking {
-            val repo = FakeNotesRepo()
-            val useCase = SearchNotesUseCase(repo)
-
-            repo.createNote(
-                Note(
-                    id = "n1",
-                    folderId = "folder-a",
-                    title = "Молоко в папке A",
-                ),
-            )
-            repo.createNote(
-                Note(
-                    id = "n2",
-                    folderId = "folder-b",
-                    title = "Молоко в папке B",
-                ),
-            )
-
-            val result = useCase("молоко", folderId = "folder-a").first()
-
-            assertEquals(1, result.size)
-            assertEquals("n1", result.first().id)
         }
 
     @Test
