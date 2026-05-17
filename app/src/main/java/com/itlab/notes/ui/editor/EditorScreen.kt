@@ -11,11 +11,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,7 +34,8 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -88,7 +88,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
-import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -103,10 +102,11 @@ import com.itlab.notes.media.NoteMediaImport
 import com.itlab.notes.media.imageAttachments
 import com.itlab.notes.media.toCoilModel
 import com.itlab.notes.ui.asDomainFolderId
-import com.itlab.notes.ui.toSingleLineText
 import com.itlab.notes.ui.notes.NoteItemUi
+import com.itlab.notes.ui.toSingleLineText
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 private const val EDITOR_TOP_BAR_TITLE_MAX_LENGTH = 35
 
@@ -115,7 +115,7 @@ private val EditorHorizontalContentPadding = 15.dp
 private val EditorContentScrollBottomInset = 120.dp
 private val EditorContentScrollTopInset = 16.dp
 private val EditorContentFieldMinHeight = 160.dp
-private const val EditorAutosaveDebounceMs = 600L
+private const val EDITOR_AUTOSAVE_DEBOUNCE_MS = 600L
 
 private data class EditorAttachmentsViewerState(
     val images: List<ContentItem.Image>,
@@ -126,11 +126,11 @@ private fun String.truncateForEditorTopBar(): String = take(EDITOR_TOP_BAR_TITLE
 
 private const val EDITOR_AI_UI_PREVIEW = true
 
-private val editorAiPreviewSummary =
+private const val EDITOR_AI_PREVIEW_SUMMARY =
     "This note is about planning the product launch: goals for the week, " +
         "open questions for the team, and a short list of next steps."
 private val editorAiPreviewTags =
-    listOf("Work", "Planning", "Product", "Follow-up", "Study", "Study","Study",)
+    listOf("Work", "Planning", "Product", "Follow-up", "Study", "Study", "Study")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,7 +163,7 @@ fun editorScreen(
 
     LaunchedEffect(editorVm.title, editorVm.content, editorVm.attachments, titleHasDuplicate) {
         if (editorVm.buildUpdatedNote() == initialNote) return@LaunchedEffect
-        delay(EditorAutosaveDebounceMs)
+        delay(EDITOR_AUTOSAVE_DEBOUNCE_MS)
         if (!titleHasDuplicate) {
             persistDraftIfNeeded()
         }
@@ -247,7 +247,7 @@ fun editorScreen(
                 titleHasDuplicate = titleHasDuplicate,
                 content = editorVm.content,
                 attachments = editorVm.attachments,
-                aiSummary = if (EDITOR_AI_UI_PREVIEW) editorAiPreviewSummary else null,
+                aiSummary = if (EDITOR_AI_UI_PREVIEW) EDITOR_AI_PREVIEW_SUMMARY else null,
                 onTitleChange = editorVm::onTitleChange,
                 onContentChange = editorVm::onContentChange,
                 onAttachmentClick = { item ->
@@ -538,7 +538,8 @@ private fun editorImageThumbnail(
             if (model != null) {
                 AsyncImage(
                     model =
-                        ImageRequest.Builder(context)
+                        ImageRequest
+                            .Builder(context)
                             .data(model)
                             .crossfade(true)
                             .allowHardware(false)
@@ -646,7 +647,8 @@ private fun editorFullScreenAttachmentsViewer(
                         val absorbImageTap = remember(item.id) { MutableInteractionSource() }
                         AsyncImage(
                             model =
-                                ImageRequest.Builder(context)
+                                ImageRequest
+                                    .Builder(context)
                                     .data(model)
                                     .crossfade(false)
                                     .allowHardware(false)

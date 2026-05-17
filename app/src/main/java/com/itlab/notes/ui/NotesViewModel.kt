@@ -10,14 +10,14 @@ import com.itlab.domain.model.Note
 import com.itlab.domain.model.NoteFolder
 import com.itlab.notes.media.withoutTextItems
 import com.itlab.notes.ui.notes.ALL_DIRECTORY_ID
-import com.itlab.notes.ui.notes.canCreateNotesInDirectory
 import com.itlab.notes.ui.notes.DirectoryItemUi
 import com.itlab.notes.ui.notes.FAVORITES_DIRECTORY_ID
 import com.itlab.notes.ui.notes.NoteItemUi
 import com.itlab.notes.ui.notes.RECENT_DIRECTORY_ID
+import com.itlab.notes.ui.notes.canCreateNotesInDirectory
 import com.itlab.notes.ui.notes.coerceDirectoryNameLength
-import com.itlab.notes.ui.toSingleLineText
 import com.itlab.notes.ui.notes.isVirtualDirectory
+import com.itlab.notes.ui.toSingleLineText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -58,7 +58,11 @@ class NotesViewModel(
             is NotesUiEvent.OpenNote -> openNote(event.note)
             NotesUiEvent.CreateNote -> createNote()
             is NotesUiEvent.CreateDirectory -> {
-                val normalized = event.name.toSingleLineText().trim().coerceDirectoryNameLength()
+                val normalized =
+                    event.name
+                        .toSingleLineText()
+                        .trim()
+                        .coerceDirectoryNameLength()
                 if (normalized.isNotBlank()) {
                     viewModelScope.launch {
                         useCases.createFolderUseCase(NoteFolder(name = normalized))
@@ -100,7 +104,11 @@ class NotesViewModel(
     }
 
     private fun renameDirectory(event: NotesUiEvent.RenameDirectory) {
-        val normalized = event.newName.toSingleLineText().trim().coerceDirectoryNameLength()
+        val normalized =
+            event.newName
+                .toSingleLineText()
+                .trim()
+                .coerceDirectoryNameLength()
         if (normalized.isBlank() || isVirtualDirectory(event.directoryId)) return
         viewModelScope.launch {
             val existingFolder = useCases.getFolderUseCase(event.directoryId) ?: return@launch

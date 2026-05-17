@@ -30,6 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AllInbox
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -38,7 +40,6 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderCopy
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -79,13 +80,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
-import com.itlab.notes.ui.toSingleLineText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import com.itlab.notes.R
+import com.itlab.notes.onboarding.OnboardingTargets
+import com.itlab.notes.onboarding.onboardingTargetModifier
+import com.itlab.notes.ui.toSingleLineText
 
 private const val DIRECTORY_NAME_TAKEN_ERROR = "A directory with this name already exists"
 
@@ -101,6 +102,8 @@ fun directoriesScreen(
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     showSignOut: Boolean = false,
     onSignOut: () -> Unit = {},
+    showReturnToSignIn: Boolean = false,
+    onReturnToSignIn: () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
@@ -125,6 +128,8 @@ fun directoriesScreen(
             directoriesTopBar(
                 showSignOut = showSignOut,
                 onSignOut = onSignOut,
+                showReturnToSignIn = showReturnToSignIn,
+                onReturnToSignIn = onReturnToSignIn,
                 onAddDirectoryClick = { showCreateDialog = true },
             )
         },
@@ -303,22 +308,41 @@ internal fun universalBasicAlertDialog(
 private fun directoriesTopBar(
     showSignOut: Boolean,
     onSignOut: () -> Unit,
+    showReturnToSignIn: Boolean,
+    onReturnToSignIn: () -> Unit,
     onAddDirectoryClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val showAccountAction = showSignOut || showReturnToSignIn
     CenterAlignedTopAppBar(
         title = { Text("Directories", color = colors.onSurface) },
         actions = {
-            if (showSignOut) {
-                IconButton(onClick = onSignOut) {
+            if (showAccountAction) {
+                IconButton(
+                    onClick = if (showSignOut) onSignOut else onReturnToSignIn,
+                    modifier =
+                        if (showSignOut) {
+                            onboardingTargetModifier(OnboardingTargets.DIRECTORIES_SIGN_OUT)
+                        } else {
+                            Modifier
+                        },
+                ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.Logout,
-                        contentDescription = "Sign out",
+                        imageVector =
+                            if (showSignOut) {
+                                Icons.AutoMirrored.Rounded.Logout
+                            } else {
+                                Icons.AutoMirrored.Rounded.Login
+                            },
+                        contentDescription = if (showSignOut) "Sign out" else "Sign in",
                         tint = colors.onSurface,
                     )
                 }
             }
-            IconButton(onClick = onAddDirectoryClick) {
+            IconButton(
+                onClick = onAddDirectoryClick,
+                modifier = onboardingTargetModifier(OnboardingTargets.DIRECTORIES_ADD),
+            ) {
                 Icon(
                     Icons.Rounded.Add,
                     contentDescription = null,
@@ -386,6 +410,7 @@ private fun directoriesList(
         directorySearchBar(
             query = searchQuery,
             onQueryChange = onSearchQueryChange,
+            modifier = onboardingTargetModifier(OnboardingTargets.DIRECTORIES_SEARCH),
         )
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -394,6 +419,7 @@ private fun directoriesList(
             fun LazyListScope.addSection(
                 title: String,
                 dirs: List<DirectoryItemUi>,
+                tourHighlightDirectoryId: String? = null,
             ) {
                 if (dirs.isEmpty()) return
                 item { sectionTitle(title = title) }
@@ -402,6 +428,7 @@ private fun directoriesList(
                         directories = dirs,
                         onDirectoryClick = onDirectoryClick,
                         onDirectoryLongClick = { pendingDelete = it },
+                        tourHighlightDirectoryId = tourHighlightDirectoryId,
                     )
                 }
             }
@@ -421,7 +448,12 @@ private fun directoriesList(
             if (!isSearchActive) {
                 addSection("Continue working", listOf(recentDirectory))
             }
-            addSection("Regular directories", regularDirectories)
+            addSection(
+                title = "Regular directories",
+                dirs = regularDirectories,
+                tourHighlightDirectoryId =
+                    regularDirectories.firstOrNull()?.id ?: allNotesDirectory?.id,
+            )
 
             when {
                 isSearchActive && directories.isEmpty() -> {
@@ -539,6 +571,7 @@ private fun directoriesBlock(
     directories: List<DirectoryItemUi>,
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     onDirectoryLongClick: (DirectoryItemUi) -> Unit,
+    tourHighlightDirectoryId: String? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -558,7 +591,16 @@ private fun directoriesBlock(
                             onDirectoryLongClick(dir)
                         }
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp),
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 12.dp, vertical = 0.dp)
+                            .then(
+                                if (dir.id == tourHighlightDirectoryId) {
+                                    onboardingTargetModifier(OnboardingTargets.DIRECTORIES_FOLDER_ROW)
+                                } else {
+                                    Modifier
+                                },
+                            ),
                 )
                 if (index < directories.lastIndex) {
                     directoriesListDivider()

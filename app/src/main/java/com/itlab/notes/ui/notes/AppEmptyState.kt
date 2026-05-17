@@ -86,9 +86,7 @@ fun directoriesSearchEmptyState(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun directoriesEmptyState(
-    modifier: Modifier = Modifier,
-) {
+fun directoriesEmptyState(modifier: Modifier = Modifier) {
     appEmptyState(
         icon = Icons.Rounded.Folder,
         title = "No directories yet",

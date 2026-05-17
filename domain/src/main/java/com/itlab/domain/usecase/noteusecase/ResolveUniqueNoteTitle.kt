@@ -4,6 +4,7 @@ package com.itlab.domain.usecase.noteusecase
  * Picks a title that does not collide with [existingTitles] in the same folder (case-insensitive).
  * If [desiredTitle] is taken, returns `"$base (1)"`, `"$base (2)"`, …
  */
+@Suppress("ReturnCount")
 fun resolveUniqueNoteTitle(
     desiredTitle: String,
     existingTitles: Iterable<String>,

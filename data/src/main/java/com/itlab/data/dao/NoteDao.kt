@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.itlab.data.entity.NoteEntity
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 @Dao
 interface NoteDao {
     @Query("SELECT * FROM notes WHERE isDeleted = 0 ORDER BY updatedAt DESC")
