@@ -1,0 +1,112 @@
+package com.itlab.data.mapper
+
+import com.itlab.data.entity.MediaEntity
+import com.itlab.data.entity.NoteEntity
+import com.itlab.data.mapper.toDomain
+import com.itlab.data.mapper.toDto
+import com.itlab.data.model.ContentItemDto
+import com.itlab.domain.model.ContentItem
+import com.itlab.domain.model.Note
+import com.itlab.domain.model.SyncState
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import timber.log.Timber
+import java.util.UUID
+
+class NoteMapper(
+    private val json: Json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        },
+) {
+    fun toEntities(note: Note): Pair<NoteEntity, List<MediaEntity>> {
+        val noteId = note.id
+
+        val mediaEntities =
+            note.contentItems.mapNotNull { item ->
+                toMediaEntity(item, noteId)
+            }
+
+        val noteEntity =
+            NoteEntity(
+                id = noteId,
+                userId = note.userId,
+                title = note.title,
+                folderId = note.folderId,
+                content = serializeContent(note.contentItems),
+                createdAt = note.createdAt,
+                updatedAt = note.updatedAt,
+                tags = json.encodeToString(note.tags),
+                isFavorite = note.isFavorite,
+                isSynced = note.syncStatus == SyncState.SYNCED,
+                summary = note.summary,
+            )
+
+        return noteEntity to mediaEntities
+    }
+
+    fun toDomain(entity: NoteEntity): Note {
+        val items =
+            try {
+                deserializeContent(entity.content)
+            } catch (e: SerializationException) {
+                Timber.e(e, "Note content mapping failed for entity: ${entity.id}")
+                emptyList()
+            }
+
+        val tags =
+            try {
+                json.decodeFromString<Set<String>>(entity.tags ?: "[]")
+            } catch (e: SerializationException) {
+                Timber.e(e, "Tags mapping failed for note ${entity.id}. Raw data: ${entity.tags}")
+                emptySet()
+            }
+
+        return Note(
+            id = entity.id,
+            userId = entity.userId,
+            title = entity.title,
+            contentItems = items,
+            folderId = entity.folderId,
+            createdAt = entity.createdAt,
+            updatedAt = entity.updatedAt,
+            tags = tags,
+            isFavorite = entity.isFavorite,
+            syncStatus = if (entity.isSynced) SyncState.SYNCED else SyncState.PENDING,
+            summary = entity.summary,
+        )
+    }
+
+    private fun toMediaEntity(
+        item: ContentItem,
+        noteId: String,
+    ): MediaEntity? {
+        val (source, type, mimeType) =
+            when (item) {
+                is ContentItem.Image -> Triple(item.source, "IMAGE", item.mimeType)
+                is ContentItem.File -> Triple(item.source, "FILE", item.mimeType)
+                else -> return null
+            }
+
+        return MediaEntity(
+            id = UUID.randomUUID().toString(),
+            noteId = noteId,
+            type = type,
+            remoteUrl = source.remoteUrl,
+            localPath = source.localPath,
+            mimeType = mimeType,
+            size = (item as? ContentItem.File)?.size,
+        )
+    }
+
+    fun serializeContent(items: List<ContentItem>): String {
+        val dtos = items.map { it.toDto() }
+        return json.encodeToString(dtos)
+    }
+
+    fun deserializeContent(jsonString: String): List<ContentItem> {
+        val dtos = json.decodeFromString<List<ContentItemDto>>(jsonString)
+        return dtos.map { it.toDomain() }
+    }
+}
