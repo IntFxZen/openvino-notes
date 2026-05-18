@@ -8,13 +8,13 @@
 #   ANDROID_RELEASE_KEY_PASSWORD      — key password
 #
 # Writes app/ci-release-signing.jks and app/keystore.properties (both gitignored).
-# If ANDROID_RELEASE_KEYSTORE_BASE64 is unset or empty, exits 0 and Gradle builds an unsigned release.
+# Called only after verify_release_signing.sh confirms all secrets are set.
 
 set -euo pipefail
 
 if [[ -z "${ANDROID_RELEASE_KEYSTORE_BASE64:-}" ]]; then
-  echo "Release signing: ANDROID_RELEASE_KEYSTORE_BASE64 not set; skipping (unsigned release)."
-  exit 0
+  echo "Release signing: ANDROID_RELEASE_KEYSTORE_BASE64 is empty."
+  exit 1
 fi
 
 ROOT="${GITHUB_WORKSPACE:-.}"

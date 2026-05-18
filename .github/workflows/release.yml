@@ -1,11 +1,10 @@
 # Release builds for the Notes Android app.
 #
-# Signed release APK/AAB in CI (optional): add repository secrets (never commit keys):
+# Requires repository secrets (never commit keys):
 #   ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_RELEASE_STORE_PASSWORD,
 #   ANDROID_RELEASE_KEY_ALIAS, ANDROID_RELEASE_KEY_PASSWORD
-# The caller workflow must pass secrets (see ci.yml: secrets: inherit on the release job).
-# materialize_release_signing.sh creates app/keystore.properties + app/ci-release-signing.jks
-# which match app/build.gradle.kts when keystore.properties exists.
+# verify_release_signing.sh fails the job if any secret is missing.
+# materialize_release_signing.sh writes app/keystore.properties + app/ci-release-signing.jks.
 
 name: Release
 
@@ -28,7 +27,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Materialize release signing from GitHub secrets (optional)
+      - name: Verify release signing secrets are configured
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: bash .github/scripts/release/verify_release_signing.sh
+
+      - name: Materialize release signing from GitHub secrets
         shell: bash
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
@@ -69,7 +77,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Materialize release signing from GitHub secrets (optional)
+      - name: Verify release signing secrets are configured
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: bash .github/scripts/release/verify_release_signing.sh
+
+      - name: Materialize release signing from GitHub secrets
         shell: bash
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
