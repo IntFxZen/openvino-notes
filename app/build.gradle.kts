@@ -1,6 +1,5 @@
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 import java.util.Properties
 
 plugins {
@@ -10,11 +9,12 @@ plugins {
 }
 
 val keystorePropertiesFile = layout.projectDirectory.file("keystore.properties").asFile
-val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) {
-        keystorePropertiesFile.inputStream().use(::load)
+val keystoreProperties =
+    Properties().apply {
+        if (keystorePropertiesFile.exists()) {
+            keystorePropertiesFile.inputStream().use(::load)
+        }
     }
-}
 
 android {
     namespace = "com.itlab.notes"
