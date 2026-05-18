@@ -1,3 +1,12 @@
+# Release builds for the Notes Android app.
+#
+# Signed release APK/AAB in CI (optional): add repository secrets (never commit keys):
+#   ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_RELEASE_STORE_PASSWORD,
+#   ANDROID_RELEASE_KEY_ALIAS, ANDROID_RELEASE_KEY_PASSWORD
+# The caller workflow must pass secrets (see ci.yml: secrets: inherit on the release job).
+# materialize_release_signing.sh creates app/keystore.properties + app/ci-release-signing.jks
+# which match app/build.gradle.kts when keystore.properties exists.
+
 name: Release
 
 on:
@@ -18,6 +27,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      - name: Materialize release signing from GitHub secrets (optional)
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: bash .github/scripts/release/materialize_release_signing.sh
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-android-gradle
@@ -50,6 +68,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      - name: Materialize release signing from GitHub secrets (optional)
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: bash .github/scripts/release/materialize_release_signing.sh
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-android-gradle
