@@ -88,6 +88,9 @@ class SyncManagerImplTest {
         every { folderDao.getActiveFoldersByUserId(any()) } returns flowOf(emptyList())
         every { noteDao.getAllNotesByUserId(any()) } returns flowOf(emptyList())
         every { mediaDao.getAllMediaByUserId(any()) } returns flowOf(emptyList())
+        coEvery { mediaDao.getMediaForNote(any()) } returns emptyList()
+        coEvery { mediaDao.getDeletedMediaToSync(any()) } returns emptyList()
+        every { noteMapper.pruneNoteContentJson(any(), any()) } answers { firstArg() }
     }
 
     @After

@@ -365,12 +365,17 @@ class NotesViewModel(
     private fun persistNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
         val directory = editor.directory
-        editorPersistJob?.cancel()
+        val previousPersistJob = editorPersistJob
         editorPersistJob =
             viewModelScope.launch {
+                previousPersistJob?.join()
                 if (!persistNoteToRepository(note, directory)) return@launch
                 markEditorChangedIfNeeded(note)
-                if (editorHasLocalChanges) {
+                val userId = useCases.getUserIdUseCase() ?: return@launch
+                if (
+                    editorHasLocalChanges ||
+                    syncManager.hasPendingLocalChangesForNote(userId, note.id)
+                ) {
                     scheduleCloudUploadForNote(note, directory)
                 }
             }
@@ -387,7 +392,11 @@ class NotesViewModel(
                     markEditorChangedIfNeeded(note)
                 }
             }
-            if (editorHasLocalChanges) {
+            val userId = useCases.getUserIdUseCase()
+            if (
+                editorHasLocalChanges ||
+                (userId != null && syncManager.hasPendingLocalChangesForNote(userId, note.id))
+            ) {
                 scheduleCloudUploadForNote(note, directory)
             }
             navigateBackToDirectoryNotes(directory)
@@ -437,7 +446,6 @@ class NotesViewModel(
                         syncCheckpointStore.markInitialFullSyncCompleted(userId)
                     }
                 }
-                return@withLock
             }
             if (note.title.trim().isNotEmpty()) {
                 persistNoteToRepositoryLocked(note, directory)
@@ -558,7 +566,6 @@ class NotesViewModel(
         val editorNote =
             refreshedNote.copy(
                 content = savedNote.content,
-                attachments = savedNote.attachments,
             )
         val editor = uiState.screen as? NotesUiScreen.NoteEditor
         if (editor != null && (editor.note.id == note.id || editor.note.id == persistedId)) {

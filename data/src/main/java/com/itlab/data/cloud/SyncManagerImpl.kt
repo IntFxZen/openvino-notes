@@ -464,7 +464,9 @@ class SyncPusher(
             val result = cloudDataSource.uploadNote(cloudKey, json)
 
             if (result is Result.Success) {
-                daos.noteDao.update(entityToUpload.copy(isSynced = true))
+                if (!hasPendingMediaForNote(userId, entityToUpload.id)) {
+                    daos.noteDao.update(entityToUpload.copy(isSynced = true))
+                }
             } else if (result is Result.Error) {
                 Timber.e(result.exception, "Couldn't upload note ${entity.id}")
                 throw result.exception
@@ -486,16 +488,26 @@ class SyncPusher(
     }
 
     private suspend fun prepareNoteEntityForUpload(entity: NoteEntity): NoteEntity {
-        val activeIds = daos.mediaDao.getMediaForNote(entity.id).map { it.id }.toSet()
+        val activeMediaIds = daos.mediaDao.getMediaForNote(entity.id).map { it.id }.toSet()
         val prunedContent =
             mappers.noteMapper.pruneNoteContentJson(
                 contentJson = entity.content,
-                activeMediaIds = activeIds,
+                activeMediaIds = activeMediaIds,
             )
         if (prunedContent == entity.content) return entity
-        val updated = entity.copy(content = prunedContent)
+        val updated = entity.copy(content = prunedContent, isSynced = false)
         daos.noteDao.update(updated)
         return updated
+    }
+
+    private suspend fun hasPendingMediaForNote(
+        userId: String,
+        noteId: String,
+    ): Boolean {
+        val unsyncedMedia = daos.mediaDao.getUnsyncedMedia(userId)
+        if (unsyncedMedia.any { it.noteId == noteId }) return true
+        val deletedMedia = daos.mediaDao.getDeletedMediaToSync(userId)
+        return deletedMedia.any { it.noteId == noteId }
     }
 
     private suspend fun pushMedia(userId: String): Set<String> {

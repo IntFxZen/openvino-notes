@@ -65,6 +65,7 @@ class NoteMapper(
         // Обогащаем элементы контента локальными путями и remoteUrl из таблицы MediaEntity
         val activeMedia = mediaEntities.filter { !it.isDeleted }
         val activeMediaIds = activeMedia.map { it.id }.toSet()
+        val filterOrphanMedia = activeMedia.isNotEmpty()
         val enrichedItems =
             rawItems
                 .filter { item ->
@@ -72,7 +73,7 @@ class NoteMapper(
                         is ContentItem.Text -> true
                         is ContentItem.Image,
                         is ContentItem.File,
-                        -> item.id in activeMediaIds
+                        -> !filterOrphanMedia || item.id in activeMediaIds
                         else -> true
                     }
                 }.map { item ->

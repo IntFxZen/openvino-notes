@@ -78,12 +78,14 @@ class NotesRepositoryImpl(
                 if (alreadyExistingMedia != null) {
                     incoming.copy(
                         remoteUrl = alreadyExistingMedia.remoteUrl ?: incoming.remoteUrl,
-                        // Сохраняем локальный путь, если картинка уже существует на этом устройстве
                         localPath = alreadyExistingMedia.localPath ?: incoming.localPath,
-                        isSynced = alreadyExistingMedia.isSynced,
+                        isSynced =
+                            alreadyExistingMedia.isSynced &&
+                                incoming.localPath == alreadyExistingMedia.localPath,
+                        isDeleted = false,
                     )
                 } else {
-                    incoming
+                    incoming.copy(isSynced = false, isDeleted = false)
                 }
             }
 
@@ -91,10 +93,11 @@ class NotesRepositoryImpl(
             mediaDao.insertAll(finalMediaToInsert)
         }
 
+        val activeMediaIds = mediaDao.getMediaForNote(note.id).map { it.id }.toSet()
         val prunedContent =
             mapper.pruneNoteContentJson(
                 contentJson = newNoteEntity.content,
-                activeMediaIds = incomingIds,
+                activeMediaIds = activeMediaIds,
             )
         val noteWithPendingSync =
             newNoteEntity.copy(
