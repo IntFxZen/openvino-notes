@@ -17,9 +17,9 @@ import com.itlab.notes.onboarding.LocalOnboardingRegistrar
 import com.itlab.notes.onboarding.OnboardingViewModel
 import com.itlab.notes.onboarding.coachMarkOverlay
 import com.itlab.notes.onboarding.welcomeOnboardingScreen
+import com.itlab.notes.ui.EditorCloudSyncStatus
 import com.itlab.notes.ui.auth.AuthViewModel
 import com.itlab.notes.ui.auth.authScreen
-import com.itlab.notes.ui.EditorCloudSyncStatus
 import com.itlab.notes.ui.editor.editorScreen
 import com.itlab.notes.ui.filterDirectoriesByName
 import com.itlab.notes.ui.notes.NotesListActions

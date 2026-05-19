@@ -4,13 +4,13 @@ import androidx.room.Room
 import com.itlab.data.BuildConfig
 import com.itlab.data.cloud.AuthManager
 import com.itlab.data.cloud.FirebaseCloudDataSource
+import com.itlab.data.cloud.SharedPreferencesSyncCheckpointStore
 import com.itlab.data.cloud.SyncCleaner
 import com.itlab.data.cloud.SyncDaoContainer
 import com.itlab.data.cloud.SyncManagerImpl
 import com.itlab.data.cloud.SyncMappers
 import com.itlab.data.cloud.SyncPuller
 import com.itlab.data.cloud.SyncPusher
-import com.itlab.data.cloud.SharedPreferencesSyncCheckpointStore
 import com.itlab.data.cloud.SyncWorker
 import com.itlab.data.cloud.WorkManagerSyncScheduler
 import com.itlab.data.db.AppDatabase
@@ -71,7 +71,7 @@ val dataModule =
 
         single<CloudDataSource> { FirebaseCloudDataSource(get()) }
         single { SyncDaoContainer(get(), get(), get()) }
-        single { SyncMappers(get(), get()) }
+        single { SyncMappers(get(), get(), get()) }
         single { SyncCleaner(get(), get(), get()) }
         single { SyncPuller(get(), get(), get(), get()) }
         single { SyncPusher(get(), get(), get()) }

@@ -434,75 +434,75 @@ private fun directoriesList(
                         .heightIn(min = maxHeight + 1.dp),
                 contentPadding = PaddingValues(bottom = 12.dp),
             ) {
-            fun LazyListScope.addSection(
-                title: String,
-                dirs: List<DirectoryItemUi>,
-                tourHighlightDirectoryId: String? = null,
-            ) {
-                if (dirs.isEmpty()) return
-                item { sectionTitle(title = title) }
+                fun LazyListScope.addSection(
+                    title: String,
+                    dirs: List<DirectoryItemUi>,
+                    tourHighlightDirectoryId: String? = null,
+                ) {
+                    if (dirs.isEmpty()) return
+                    item { sectionTitle(title = title) }
+                    item {
+                        directoriesBlock(
+                            directories = dirs,
+                            onDirectoryClick = onDirectoryClick,
+                            onDirectoryLongClick = { pendingDelete = it },
+                            tourHighlightDirectoryId = tourHighlightDirectoryId,
+                        )
+                    }
+                }
+
                 item {
-                    directoriesBlock(
-                        directories = dirs,
-                        onDirectoryClick = onDirectoryClick,
-                        onDirectoryLongClick = { pendingDelete = it },
-                        tourHighlightDirectoryId = tourHighlightDirectoryId,
+                    directoriesHeroPanel(
+                        directoriesCount = regularDirectories.size,
+                        totalNotesCount = totalNotesCount,
                     )
                 }
-            }
-
-            item {
-                directoriesHeroPanel(
-                    directoriesCount = regularDirectories.size,
-                    totalNotesCount = totalNotesCount,
+                allNotesDirectory?.let { allNotes ->
+                    addSection("Everything", listOf(allNotes))
+                }
+                favoritesDirectory?.let { favorites ->
+                    addSection("Favorite notes", listOf(favorites))
+                }
+                if (!isSearchActive) {
+                    addSection("Continue working", listOf(recentDirectory))
+                }
+                addSection(
+                    title = "Regular directories",
+                    dirs = regularDirectories,
+                    tourHighlightDirectoryId =
+                        regularDirectories.firstOrNull()?.id ?: allNotesDirectory?.id,
                 )
-            }
-            allNotesDirectory?.let { allNotes ->
-                addSection("Everything", listOf(allNotes))
-            }
-            favoritesDirectory?.let { favorites ->
-                addSection("Favorite notes", listOf(favorites))
-            }
-            if (!isSearchActive) {
-                addSection("Continue working", listOf(recentDirectory))
-            }
-            addSection(
-                title = "Regular directories",
-                dirs = regularDirectories,
-                tourHighlightDirectoryId =
-                    regularDirectories.firstOrNull()?.id ?: allNotesDirectory?.id,
-            )
 
-            when {
-                isSearchActive && directories.isEmpty() -> {
-                    item {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 80.dp)
-                                    .heightIn(min = 220.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            directoriesSearchEmptyState()
+                when {
+                    isSearchActive && directories.isEmpty() -> {
+                        item {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 80.dp)
+                                        .heightIn(min = 220.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                directoriesSearchEmptyState()
+                            }
+                        }
+                    }
+                    !isSearchActive && regularDirectories.isEmpty() -> {
+                        item {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 80.dp)
+                                        .heightIn(min = 220.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                directoriesEmptyState()
+                            }
                         }
                     }
                 }
-                !isSearchActive && regularDirectories.isEmpty() -> {
-                    item {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 80.dp)
-                                    .heightIn(min = 220.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            directoriesEmptyState()
-                        }
-                    }
-                }
-            }
             }
         }
     }

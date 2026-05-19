@@ -31,10 +31,10 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -490,53 +490,53 @@ private fun notesListContent(
                         .heightIn(min = maxHeight + 1.dp)
                         .padding(top = 4.dp),
             ) {
-            if (notes.isEmpty() && isSearchActive) {
-                item {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 80.dp)
-                                .heightIn(min = 220.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        notesSearchEmptyState()
+                if (notes.isEmpty() && isSearchActive) {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 80.dp)
+                                    .heightIn(min = 220.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            notesSearchEmptyState()
+                        }
                     }
                 }
-            }
-            val tourNoteId = notes.firstOrNull()?.id
-            items(
-                items = notes,
-                key = { note -> note.id },
-            ) { note ->
-                notesListItem(
-                    note = note,
-                    isSelected = note.id in selectedNoteIds,
-                    isUploadingToCloud = note.id in noteIdsUploading,
-                    modifier =
-                        if (note.id == tourNoteId) {
-                            Modifier.onboardingTarget(OnboardingTargets.NOTES_NOTE_ROW)
-                        } else {
-                            Modifier
-                        },
-                    onClick = {
-                        if (isSelectionMode) {
-                            if (note.id in selectedNoteIds) {
-                                selectedNoteIds.remove(note.id)
+                val tourNoteId = notes.firstOrNull()?.id
+                items(
+                    items = notes,
+                    key = { note -> note.id },
+                ) { note ->
+                    notesListItem(
+                        note = note,
+                        isSelected = note.id in selectedNoteIds,
+                        isUploadingToCloud = note.id in noteIdsUploading,
+                        modifier =
+                            if (note.id == tourNoteId) {
+                                Modifier.onboardingTarget(OnboardingTargets.NOTES_NOTE_ROW)
                             } else {
+                                Modifier
+                            },
+                        onClick = {
+                            if (isSelectionMode) {
+                                if (note.id in selectedNoteIds) {
+                                    selectedNoteIds.remove(note.id)
+                                } else {
+                                    selectedNoteIds.add(note.id)
+                                }
+                            } else {
+                                actions.onNoteClick(note)
+                            }
+                        },
+                        onLongClick = {
+                            if (note.id !in selectedNoteIds) {
                                 selectedNoteIds.add(note.id)
                             }
-                        } else {
-                            actions.onNoteClick(note)
-                        }
-                    },
-                    onLongClick = {
-                        if (note.id !in selectedNoteIds) {
-                            selectedNoteIds.add(note.id)
-                        }
-                    },
-                )
-            }
+                        },
+                    )
+                }
             }
         }
     }

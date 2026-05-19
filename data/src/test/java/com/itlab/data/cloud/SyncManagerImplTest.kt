@@ -9,6 +9,7 @@ import com.itlab.data.entity.MediaEntity
 import com.itlab.data.entity.NoteEntity
 import com.itlab.data.mapper.FolderEntityJsonConverter
 import com.itlab.data.mapper.NoteEntityJsonConverter
+import com.itlab.data.mapper.NoteMapper
 import com.itlab.domain.cloud.CloudDataSource
 import com.itlab.domain.cloud.CloudMediaMetadata
 import com.itlab.domain.cloud.Result
@@ -53,6 +54,9 @@ class SyncManagerImplTest {
     lateinit var jsonConverter: NoteEntityJsonConverter
 
     @MockK(relaxed = true)
+    lateinit var noteMapper: NoteMapper
+
+    @MockK(relaxed = true)
     lateinit var context: Context
 
     private lateinit var pusher: SyncPusher
@@ -71,7 +75,7 @@ class SyncManagerImplTest {
         tempMediaFile = File.createTempFile("test_media", ".png")
 
         val daos = SyncDaoContainer(noteDao, folderDao, mediaDao)
-        val mappers = SyncMappers(jsonConverter, folderConverter)
+        val mappers = SyncMappers(jsonConverter, folderConverter, noteMapper)
 
         pusher = SyncPusher(daos, mappers, cloudDataSource)
         puller = SyncPuller(daos, mappers, cloudDataSource, context)
@@ -176,7 +180,14 @@ class SyncManagerImplTest {
         runBlocking {
             val remoteKey = "users/$userId/notes/n1"
             coEvery { cloudDataSource.listNoteMetadata(userId) } returns
-                Result.Success(listOf(mockk { every { key } returns remoteKey }))
+                Result.Success(
+                    listOf(
+                        mockk {
+                            every { key } returns remoteKey
+                            every { updatedAt } returns now
+                        },
+                    ),
+                )
             coEvery { cloudDataSource.downloadNote(remoteKey) } returns Result.Success("{}")
 
             val testNote = createTestNote()

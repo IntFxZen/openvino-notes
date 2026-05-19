@@ -6,7 +6,10 @@ import com.itlab.data.dao.NoteDao
 import com.itlab.data.entity.MediaEntity
 import com.itlab.data.mapper.FolderEntityJsonConverter
 import com.itlab.data.mapper.NoteEntityJsonConverter
+import com.itlab.data.mapper.NoteMapper
 import com.itlab.domain.cloud.CloudDataSource
+import com.itlab.domain.cloud.CloudMetadata
+import com.itlab.domain.model.ContentItem
 import com.itlab.domain.cloud.CloudMediaMetadata
 import com.itlab.domain.cloud.DomainFile
 import com.itlab.domain.cloud.Result
@@ -31,6 +34,7 @@ data class SyncDaoContainer(
 data class SyncMappers(
     val jsonConverterNote: NoteEntityJsonConverter,
     val jsonConverterFolder: FolderEntityJsonConverter,
+    val noteMapper: NoteMapper,
 )
 
 class SyncManagerImpl(
@@ -221,15 +225,14 @@ class SyncPuller(
         val remoteIds = remoteMetadata.map { it.key.substringAfterLast('/') }.toSet()
 
         val localNotes = daos.noteDao.getAllNotesByUserId(userId).first()
-        val localIds = localNotes.map { it.id }.toSet()
+        val localNotesById = localNotes.associateBy { it.id }
 
-        val toDownload =
-            remoteMetadata.filter { remoteMeta ->
-                val remoteNoteId = remoteMeta.key.substringAfterLast('/')
-                remoteNoteId !in localIds
+        val toFetch =
+            remoteMetadata.filter { meta ->
+                shouldFetchRemoteNote(meta, localNotesById[meta.key.substringAfterLast('/')])
             }
 
-        for (meta in toDownload) {
+        for (meta in toFetch) {
             val downloadResult = cloudDataSource.downloadNote(meta.key)
             if (downloadResult is Result.Success) {
                 val entity =
@@ -237,7 +240,13 @@ class SyncPuller(
                         jsonString = downloadResult.data,
                         userId = userId,
                     )
-                daos.noteDao.insert(entity)
+                val existing = localNotesById[entity.id]
+                if (existing == null) {
+                    daos.noteDao.insert(entity)
+                } else {
+                    daos.noteDao.update(entity.copy(isSynced = true))
+                }
+                pruneNoteMediaToMatchContent(entity.id, entity.content)
             } else if (downloadResult is Result.Error) {
                 Timber.e(downloadResult.exception, "Couldn't download note ${meta.key}")
                 throw downloadResult.exception
@@ -245,6 +254,46 @@ class SyncPuller(
         }
 
         return remoteIds
+    }
+
+    private fun shouldFetchRemoteNote(
+        meta: CloudMetadata,
+        local: com.itlab.data.entity.NoteEntity?,
+    ): Boolean {
+        if (local == null) return true
+        return meta.updatedAt > local.updatedAt
+    }
+
+    private suspend fun pruneNoteMediaToMatchContent(
+        noteId: String,
+        contentJson: String,
+    ) {
+        val contentItems =
+            try {
+                mappers.noteMapper.deserializeContent(contentJson)
+            } catch (e: SerializationException) {
+                Timber.e(e, "Cannot prune media for note $noteId: invalid content JSON")
+                return
+            }
+        val idsInContent =
+            contentItems.mapNotNull { item ->
+                when (item) {
+                    is ContentItem.Image,
+                    is ContentItem.File,
+                    -> item.id
+                    else -> null
+                }
+            }.toSet()
+        val localMedia = daos.mediaDao.getMediaForNote(noteId)
+        val orphanIds =
+            localMedia
+                .map { it.id }
+                .filter { id -> id !in idsInContent }
+        if (orphanIds.isEmpty()) return
+        localMedia
+            .filter { it.id in orphanIds }
+            .forEach { media -> media.localPath?.let { path -> File(path).delete() } }
+        daos.mediaDao.softDeleteMediaByIds(orphanIds)
     }
 
     private suspend fun pullMedia(userId: String): Set<String> {

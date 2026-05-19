@@ -11,8 +11,8 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
-import com.itlab.notes.R
 import com.itlab.domain.cloud.SyncCheckpointStore
+import com.itlab.notes.R
 import com.itlab.notes.auth.AppSessionPreferences
 import com.itlab.notes.auth.NotesSessionHolder
 import kotlinx.coroutines.flow.MutableStateFlow

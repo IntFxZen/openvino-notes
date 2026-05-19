@@ -1,5 +1,6 @@
 package com.itlab
 
+import com.itlab.domain.repository.AuthRepository
 import com.itlab.domain.usecase.folderusecase.CreateFolderUseCase
 import com.itlab.domain.usecase.folderusecase.DeleteFolderUseCase
 import com.itlab.domain.usecase.folderusecase.GetFolderUseCase
@@ -16,9 +17,7 @@ import com.itlab.domain.usecase.noteusecase.ObserveNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SearchNotesUseCase
 import com.itlab.domain.usecase.noteusecase.SwitchFavoriteUseCase
 import com.itlab.domain.usecase.noteusecase.UpdateNoteUseCase
-import com.itlab.domain.cloud.SyncScheduler
 import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
-import com.itlab.domain.repository.AuthRepository
 import com.itlab.notes.auth.AppSessionPreferences
 import com.itlab.notes.auth.NotesSessionHolder
 import com.itlab.notes.auth.SessionAwareAuthRepository

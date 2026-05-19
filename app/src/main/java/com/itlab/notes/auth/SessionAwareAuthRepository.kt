@@ -7,6 +7,5 @@ class SessionAwareAuthRepository(
     private val authManager: AuthManager,
     private val sessionHolder: NotesSessionHolder,
 ) : AuthRepository {
-    override fun getCurrentUserId(): String? =
-        sessionHolder.resolveUserId(authManager.getCurrentUserId())
+    override fun getCurrentUserId(): String? = sessionHolder.resolveUserId(authManager.getCurrentUserId())
 }

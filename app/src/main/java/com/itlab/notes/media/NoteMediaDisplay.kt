@@ -40,4 +40,3 @@ fun ContentItem.File.toCoilModel(context: Context): Any? {
     syncedMediaFile(context, id)?.let { return it }
     return null
 }
-
