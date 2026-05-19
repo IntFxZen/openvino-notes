@@ -364,9 +364,16 @@ class NotesViewModel(
 
     private fun persistNote(note: NoteItemUi) {
         val editor = uiState.screen as? NotesUiScreen.NoteEditor ?: return
-        viewModelScope.launch {
-            persistNoteToRepository(note, editor.directory)
-        }
+        val directory = editor.directory
+        editorPersistJob?.cancel()
+        editorPersistJob =
+            viewModelScope.launch {
+                if (!persistNoteToRepository(note, directory)) return@launch
+                markEditorChangedIfNeeded(note)
+                if (editorHasLocalChanges) {
+                    scheduleCloudUploadForNote(note, directory)
+                }
+            }
     }
 
     private fun leaveEditor(note: NoteItemUi) {
@@ -391,7 +398,6 @@ class NotesViewModel(
         note: NoteItemUi,
         directory: DirectoryItemUi,
     ) {
-        if (!editorHasLocalChanges) return
         val userId = useCases.getUserIdUseCase() ?: return
 
         cloudUploadJobs[note.id]?.cancel()
@@ -549,9 +555,14 @@ class NotesViewModel(
                 folderId = targetFolderId,
             )
         val refreshedNote = useCases.getNoteUseCase(persistedId)?.toUi() ?: savedNote
+        val editorNote =
+            refreshedNote.copy(
+                content = savedNote.content,
+                attachments = savedNote.attachments,
+            )
         val editor = uiState.screen as? NotesUiScreen.NoteEditor
         if (editor != null && (editor.note.id == note.id || editor.note.id == persistedId)) {
-            uiState = uiState.copy(screen = editor.copy(note = refreshedNote))
+            uiState = uiState.copy(screen = editor.copy(note = editorNote))
         }
         return true
     }

@@ -153,7 +153,7 @@ fun editorScreen(
     val editorVm = remember(note.id) { EditorViewModel(initialNote = initialNote) }
 
     LaunchedEffect(note.attachments) {
-        editorVm.mergeAttachmentSources(note.attachments)
+        editorVm.syncAttachmentsFromNote(note.attachments)
     }
     var attachmentsViewer by remember { mutableStateOf<EditorAttachmentsViewerState?>(null) }
     val targetFolderId = note.folderId ?: directoryId.asDomainFolderId()

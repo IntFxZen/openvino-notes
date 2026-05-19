@@ -87,12 +87,21 @@ class NotesRepositoryImpl(
                 }
             }
 
-        val noteWithPendingSync = newNoteEntity.copy(isSynced = false)
-        noteDao.update(noteWithPendingSync)
-
         if (finalMediaToInsert.isNotEmpty()) {
             mediaDao.insertAll(finalMediaToInsert)
         }
+
+        val prunedContent =
+            mapper.pruneNoteContentJson(
+                contentJson = newNoteEntity.content,
+                activeMediaIds = incomingIds,
+            )
+        val noteWithPendingSync =
+            newNoteEntity.copy(
+                content = prunedContent,
+                isSynced = false,
+            )
+        noteDao.update(noteWithPendingSync)
     }
 
     override suspend fun deleteNote(

@@ -20,6 +20,9 @@ interface MediaDao {
     )
     suspend fun getMediaForNote(noteId: String): List<MediaEntity>
 
+    @Query("SELECT * FROM media WHERE noteId = :noteId")
+    suspend fun getAllMediaRowsForNote(noteId: String): List<MediaEntity>
+
     @Query("UPDATE media SET isDeleted = true, isSynced = false WHERE noteId = :noteId")
     suspend fun softDeleteByNoteId(noteId: String)
 

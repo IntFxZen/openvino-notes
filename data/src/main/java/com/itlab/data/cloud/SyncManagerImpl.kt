@@ -4,6 +4,7 @@ import com.itlab.data.dao.FolderDao
 import com.itlab.data.dao.MediaDao
 import com.itlab.data.dao.NoteDao
 import com.itlab.data.entity.MediaEntity
+import com.itlab.data.entity.NoteEntity
 import com.itlab.data.mapper.FolderEntityJsonConverter
 import com.itlab.data.mapper.NoteEntityJsonConverter
 import com.itlab.data.mapper.NoteMapper
@@ -240,13 +241,14 @@ class SyncPuller(
                         jsonString = downloadResult.data,
                         userId = userId,
                     )
+                val storedEntity = pruneNoteContentAfterPull(entity)
                 val existing = localNotesById[entity.id]
                 if (existing == null) {
-                    daos.noteDao.insert(entity)
+                    daos.noteDao.insert(storedEntity)
                 } else {
-                    daos.noteDao.update(entity.copy(isSynced = true))
+                    daos.noteDao.update(storedEntity.copy(isSynced = true))
                 }
-                pruneNoteMediaToMatchContent(entity.id, entity.content)
+                pruneNoteMediaToMatchContent(storedEntity.id, storedEntity.content)
             } else if (downloadResult is Result.Error) {
                 Timber.e(downloadResult.exception, "Couldn't download note ${meta.key}")
                 throw downloadResult.exception
@@ -261,7 +263,24 @@ class SyncPuller(
         local: com.itlab.data.entity.NoteEntity?,
     ): Boolean {
         if (local == null) return true
+        if (!local.isSynced) return false
         return meta.updatedAt > local.updatedAt
+    }
+
+    private suspend fun pruneNoteContentAfterPull(entity: NoteEntity): NoteEntity {
+        val softDeletedIds =
+            daos.mediaDao
+                .getAllMediaRowsForNote(entity.id)
+                .filter { it.isDeleted }
+                .map { it.id }
+                .toSet()
+        if (softDeletedIds.isEmpty()) return entity
+        val pruned =
+            mappers.noteMapper.pruneNoteContentJsonRemovingIds(
+                contentJson = entity.content,
+                mediaIdsToRemove = softDeletedIds,
+            )
+        return if (pruned == entity.content) entity else entity.copy(content = pruned)
     }
 
     private suspend fun pruneNoteMediaToMatchContent(
@@ -378,7 +397,7 @@ class SyncPusher(
 
     suspend fun pushChanges(userId: String) {
         pushFolders(userId)
-        markNotesWithUnsyncedMedia(userId)
+        markNotesAffectedByMediaChanges(userId)
         pushNotes(userId)
         val noteIdsWithUploadedMedia = pushMedia(userId)
         if (noteIdsWithUploadedMedia.isNotEmpty()) {
@@ -387,13 +406,13 @@ class SyncPusher(
         }
     }
 
-    /** Note JSON must be re-pushed after media lands in Storage (content lists attachment ids). */
-    private suspend fun markNotesWithUnsyncedMedia(userId: String) {
+    /** Note JSON must be re-pushed when media is added or removed. */
+    private suspend fun markNotesAffectedByMediaChanges(userId: String) {
         val noteIds =
-            daos.mediaDao
-                .getUnsyncedMedia(userId)
-                .map { it.noteId }
-                .distinct()
+            (
+                daos.mediaDao.getUnsyncedMedia(userId).map { it.noteId } +
+                    daos.mediaDao.getDeletedMediaToSync(userId).map { it.noteId }
+            ).distinct()
         if (noteIds.isNotEmpty()) {
             daos.noteDao.markNotesUnsynced(noteIds, userId)
         }
@@ -439,12 +458,13 @@ class SyncPusher(
             val freshEntity =
                 daos.noteDao.getNoteByIdAndUser(entity.id, userId)
                     ?: continue
-            val cloudKey = "users/$userId/notes/${freshEntity.id}"
-            val json = with(mappers.jsonConverterNote) { freshEntity.toJson() }
+            val entityToUpload = prepareNoteEntityForUpload(freshEntity)
+            val cloudKey = "users/$userId/notes/${entityToUpload.id}"
+            val json = with(mappers.jsonConverterNote) { entityToUpload.toJson() }
             val result = cloudDataSource.uploadNote(cloudKey, json)
 
             if (result is Result.Success) {
-                daos.noteDao.update(freshEntity.copy(isSynced = true))
+                daos.noteDao.update(entityToUpload.copy(isSynced = true))
             } else if (result is Result.Error) {
                 Timber.e(result.exception, "Couldn't upload note ${entity.id}")
                 throw result.exception
@@ -463,6 +483,19 @@ class SyncPusher(
                 throw result.exception
             }
         }
+    }
+
+    private suspend fun prepareNoteEntityForUpload(entity: NoteEntity): NoteEntity {
+        val activeIds = daos.mediaDao.getMediaForNote(entity.id).map { it.id }.toSet()
+        val prunedContent =
+            mappers.noteMapper.pruneNoteContentJson(
+                contentJson = entity.content,
+                activeMediaIds = activeIds,
+            )
+        if (prunedContent == entity.content) return entity
+        val updated = entity.copy(content = prunedContent)
+        daos.noteDao.update(updated)
+        return updated
     }
 
     private suspend fun pushMedia(userId: String): Set<String> {
