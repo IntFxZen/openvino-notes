@@ -1,6 +1,8 @@
 package com.itlab.data.repository
 
 import com.itlab.data.dao.FolderDao
+import com.itlab.data.dao.MediaDao
+import com.itlab.data.dao.NoteDao
 import com.itlab.data.mapper.NoteFolderMapper
 import com.itlab.domain.model.NoteFolder
 import io.mockk.Runs
@@ -8,8 +10,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
-import com.itlab.data.dao.MediaDao
-import com.itlab.data.dao.NoteDao
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest

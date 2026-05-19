@@ -8,13 +8,13 @@ import com.itlab.data.mapper.FolderEntityJsonConverter
 import com.itlab.data.mapper.NoteEntityJsonConverter
 import com.itlab.data.mapper.NoteMapper
 import com.itlab.domain.cloud.CloudDataSource
-import com.itlab.domain.cloud.CloudMetadata
-import com.itlab.domain.model.ContentItem
 import com.itlab.domain.cloud.CloudMediaMetadata
+import com.itlab.domain.cloud.CloudMetadata
 import com.itlab.domain.cloud.DomainFile
 import com.itlab.domain.cloud.Result
 import com.itlab.domain.cloud.SyncManager
 import com.itlab.domain.cloud.SyncState
+import com.itlab.domain.model.ContentItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -276,14 +276,15 @@ class SyncPuller(
                 return
             }
         val idsInContent =
-            contentItems.mapNotNull { item ->
-                when (item) {
-                    is ContentItem.Image,
-                    is ContentItem.File,
-                    -> item.id
-                    else -> null
-                }
-            }.toSet()
+            contentItems
+                .mapNotNull { item ->
+                    when (item) {
+                        is ContentItem.Image,
+                        is ContentItem.File,
+                        -> item.id
+                        else -> null
+                    }
+                }.toSet()
         val localMedia = daos.mediaDao.getMediaForNote(noteId)
         val orphanIds =
             localMedia
