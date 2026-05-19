@@ -488,7 +488,11 @@ class SyncPusher(
     }
 
     private suspend fun prepareNoteEntityForUpload(entity: NoteEntity): NoteEntity {
-        val activeMediaIds = daos.mediaDao.getMediaForNote(entity.id).map { it.id }.toSet()
+        val activeMediaIds =
+            daos.mediaDao
+                .getMediaForNote(entity.id)
+                .map { it.id }
+                .toSet()
         val prunedContent =
             mappers.noteMapper.pruneNoteContentJson(
                 contentJson = entity.content,
