@@ -52,6 +52,39 @@ class EditorViewModel(
         attachments = attachments.filterNot { it.id == id }
     }
 
+    /** Fills local/remote paths from DB after save or sync without replacing user edits. */
+    fun mergeAttachmentSources(fromNote: List<ContentItem>) {
+        val incomingById = fromNote.withoutTextItems().associateBy { it.id }
+        if (incomingById.isEmpty()) return
+        attachments =
+            attachments.map { item ->
+                val incoming = incomingById[item.id] ?: return@map item
+                when (item) {
+                    is ContentItem.Image ->
+                        (incoming as? ContentItem.Image)?.let { remote ->
+                            item.copy(
+                                source =
+                                    item.source.copy(
+                                        localPath = item.source.localPath ?: remote.source.localPath,
+                                        remoteUrl = item.source.remoteUrl ?: remote.source.remoteUrl,
+                                    ),
+                            )
+                        } ?: item
+                    is ContentItem.File ->
+                        (incoming as? ContentItem.File)?.let { remote ->
+                            item.copy(
+                                source =
+                                    item.source.copy(
+                                        localPath = item.source.localPath ?: remote.source.localPath,
+                                        remoteUrl = item.source.remoteUrl ?: remote.source.remoteUrl,
+                                    ),
+                            )
+                        } ?: item
+                    else -> item
+                }
+            }
+    }
+
     fun buildUpdatedNote(): NoteItemUi =
         NoteItemUi(
             id = noteId,

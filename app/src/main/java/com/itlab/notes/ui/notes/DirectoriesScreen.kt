@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -102,6 +103,9 @@ fun directoriesScreen(
     onDirectoryClick: (DirectoryItemUi) -> Unit,
     showSignOut: Boolean = false,
     onSignOut: () -> Unit = {},
+    pullToRefreshEnabled: Boolean = false,
+    isPullRefreshing: Boolean = false,
+    onPullToRefresh: () -> Unit = {},
     showReturnToSignIn: Boolean = false,
     onReturnToSignIn: () -> Unit = {},
 ) {
@@ -113,36 +117,46 @@ fun directoriesScreen(
         showCreateDialog = false
     }
 
-    Scaffold(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) {
-                    focusManager.clearFocus(force = true)
-                },
-        containerColor = colors.background,
-        topBar = {
-            directoriesTopBar(
-                showSignOut = showSignOut,
-                onSignOut = onSignOut,
-                showReturnToSignIn = showReturnToSignIn,
-                onReturnToSignIn = onReturnToSignIn,
-                onAddDirectoryClick = { showCreateDialog = true },
+    notesPullToRefreshBox(
+        enabled = pullToRefreshEnabled,
+        isRefreshing = isPullRefreshing,
+        onRefresh = onPullToRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Scaffold(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        focusManager.clearFocus(force = true)
+                    },
+            containerColor = colors.background,
+            topBar = {
+                directoriesTopBar(
+                    showSignOut = showSignOut,
+                    onSignOut = onSignOut,
+                    showReturnToSignIn = showReturnToSignIn,
+                    onReturnToSignIn = onReturnToSignIn,
+                    onAddDirectoryClick = { showCreateDialog = true },
+                )
+            },
+        ) { paddingValues ->
+            directoriesList(
+                directories = directories,
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                onDirectoryLongClick = onDeleteDirectory,
+                onDirectoryRename = onRenameDirectory,
+                onDirectoryClick = onDirectoryClick,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
             )
-        },
-    ) { paddingValues ->
-        directoriesList(
-            directories = directories,
-            searchQuery = searchQuery,
-            onSearchQueryChange = onSearchQueryChange,
-            onDirectoryLongClick = onDeleteDirectory,
-            onDirectoryRename = onRenameDirectory,
-            onDirectoryClick = onDirectoryClick,
-            modifier = Modifier.padding(paddingValues),
-        )
+        }
     }
     if (showCreateDialog) {
         directoriesCreateDirectoryDialog(
@@ -412,10 +426,14 @@ private fun directoriesList(
             onQueryChange = onSearchQueryChange,
             modifier = Modifier.onboardingTarget(OnboardingTargets.DIRECTORIES_SEARCH),
         )
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 12.dp),
-        ) {
+        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .heightIn(min = maxHeight + 1.dp),
+                contentPadding = PaddingValues(bottom = 12.dp),
+            ) {
             fun LazyListScope.addSection(
                 title: String,
                 dirs: List<DirectoryItemUi>,
@@ -484,6 +502,7 @@ private fun directoriesList(
                         }
                     }
                 }
+            }
             }
         }
     }

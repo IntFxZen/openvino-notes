@@ -45,7 +45,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.BrokenImage
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -55,7 +54,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,6 +100,7 @@ import com.itlab.notes.media.ImageRegionLuminance
 import com.itlab.notes.media.NoteMediaImport
 import com.itlab.notes.media.imageAttachments
 import com.itlab.notes.media.toCoilModel
+import com.itlab.notes.ui.EditorCloudSyncStatus
 import com.itlab.notes.ui.asDomainFolderId
 import com.itlab.notes.ui.notes.NoteItemUi
 import com.itlab.notes.ui.toSingleLineText
@@ -115,7 +115,7 @@ private val EditorHorizontalContentPadding = 15.dp
 private val EditorContentScrollBottomInset = 120.dp
 private val EditorContentScrollTopInset = 16.dp
 private val EditorContentFieldMinHeight = 160.dp
-private const val EDITOR_AUTOSAVE_DEBOUNCE_MS = 600L
+private const val EDITOR_AUTOSAVE_DEBOUNCE_MS = 400L
 
 private data class EditorAttachmentsViewerState(
     val images: List<ContentItem.Image>,
@@ -138,9 +138,9 @@ fun editorScreen(
     directoryName: String,
     directoryId: String,
     note: NoteItemUi,
+    cloudSyncStatus: EditorCloudSyncStatus = EditorCloudSyncStatus.Idle,
     onBack: (NoteItemUi) -> Unit,
     onPersist: (NoteItemUi) -> Unit,
-    onSave: (NoteItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -148,6 +148,10 @@ fun editorScreen(
     val validateDuplicateTitle: ValidateDuplicateNoteTitleUseCase = koinInject()
     val initialNote = remember(note.id) { note }
     val editorVm = remember(note.id) { EditorViewModel(initialNote = initialNote) }
+
+    LaunchedEffect(note.attachments) {
+        editorVm.mergeAttachmentSources(note.attachments)
+    }
     var attachmentsViewer by remember { mutableStateOf<EditorAttachmentsViewerState?>(null) }
     val targetFolderId = note.folderId ?: directoryId.asDomainFolderId()
     var titleDuplicate by remember { mutableStateOf(false) }
@@ -211,6 +215,7 @@ fun editorScreen(
                 directoryName = directoryName,
                 title = editorVm.title,
                 isFavorite = note.isFavorite,
+                cloudSyncStatus = cloudSyncStatus,
                 onBack = leaveEditor,
                 onToggleFavorite = onToggleFavorite,
                 onAddImage = {
@@ -218,12 +223,6 @@ fun editorScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
-            )
-        },
-        floatingActionButton = {
-            editorFab(
-                onClick = { onSave(editorVm.buildUpdatedNote()) },
-                enabled = trimmedTitle.isNotEmpty() && !titleHasDuplicate,
             )
         },
     ) { paddingValues ->
@@ -292,6 +291,7 @@ private fun editorTopBar(
     directoryName: String,
     title: String,
     isFavorite: Boolean,
+    cloudSyncStatus: EditorCloudSyncStatus,
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
     onAddImage: () -> Unit,
@@ -311,12 +311,21 @@ private fun editorTopBar(
             )
         },
         navigationIcon = {
+            val busy = cloudSyncStatus == EditorCloudSyncStatus.Uploading
             IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = null,
-                    tint = colors.onSurface,
-                )
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = colors.onSurface,
+                    )
+                } else {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = null,
+                        tint = colors.onSurface,
+                    )
+                }
             }
         },
         actions = {
@@ -349,25 +358,6 @@ private fun editorTopBar(
                 actionIconContentColor = Color.Unspecified,
             ),
     )
-}
-
-@Composable
-private fun editorFab(
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-) {
-    val colors = MaterialTheme.colorScheme
-    FloatingActionButton(
-        onClick = { if (enabled) onClick() },
-        modifier = Modifier.alpha(if (enabled) 1f else 0.4f),
-        containerColor = colors.primary,
-    ) {
-        Icon(
-            Icons.Rounded.Check,
-            contentDescription = null,
-            tint = colors.onPrimary,
-        )
-    }
 }
 
 @Composable
@@ -520,7 +510,7 @@ private fun editorImageThumbnail(
     val colors = MaterialTheme.colorScheme
     val model =
         remember(image.id, image.source.localPath, image.source.remoteUrl) {
-            image.source.toCoilModel()
+            image.toCoilModel(context)
         }
     var closeIconTint by remember(image.id) { mutableStateOf(Color.White) }
     Box {
@@ -631,7 +621,7 @@ private fun editorFullScreenAttachmentsViewer(
                 val item = images[page]
                 val model =
                     remember(item.id, item.source.localPath, item.source.remoteUrl) {
-                        item.source.toCoilModel()
+                        item.toCoilModel(context)
                     }
                 BoxWithConstraints(
                     modifier =
