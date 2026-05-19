@@ -8,6 +8,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
+import com.itlab.data.dao.MediaDao
+import com.itlab.data.dao.NoteDao
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -19,8 +21,10 @@ import kotlin.time.Clock
 
 class NoteFolderRepositoryImplTest {
     private val folderDao = mockk<FolderDao>(relaxed = true)
+    private val noteDao = mockk<NoteDao>(relaxed = true)
+    private val mediaDao = mockk<MediaDao>(relaxed = true)
     private val mapper = NoteFolderMapper()
-    private val repository = NoteFolderRepositoryImpl(folderDao, mapper)
+    private val repository = NoteFolderRepositoryImpl(folderDao, noteDao, mediaDao, mapper)
 
     private val testUserId = "test_user_1"
     private val testFolder =
@@ -58,12 +62,17 @@ class NoteFolderRepositoryImplTest {
         }
 
     @Test
-    fun `deleteFolder calls dao softDeleteById instead of physical delete`() =
+    fun `deleteFolder soft-deletes notes in folder then folder`() =
         runTest {
+            coEvery { noteDao.getNotesByFolderAndUser("1", testUserId) } returns flowOf(emptyList())
+            coEvery { noteDao.softDeleteByFolderId(any(), any(), any()) } just Runs
             coEvery { folderDao.softDeleteById(any(), any(), any()) } just Runs
 
             repository.deleteFolder("1", testUserId)
 
+            coVerify(exactly = 1) {
+                noteDao.softDeleteByFolderId(folderId = "1", userId = testUserId, timestamp = any())
+            }
             coVerify(exactly = 1) {
                 folderDao.softDeleteById(id = "1", userId = testUserId, updatedAt = any())
             }

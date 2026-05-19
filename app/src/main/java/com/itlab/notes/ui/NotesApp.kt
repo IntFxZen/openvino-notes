@@ -206,6 +206,7 @@ private fun notesMain(
                     } else {
                         screen.cloudSyncStatus
                     },
+                isCloudDownloadActive = state.isCloudDownloadActive,
                 onBack = { draft -> viewModel.onEvent(NotesUiEvent.LeaveEditor(draft)) },
                 onPersist = { draft ->
                     viewModel.onEvent(NotesUiEvent.PersistNote(draft))

@@ -87,7 +87,7 @@ val dataModule =
         single<SyncCheckpointStore> { SharedPreferencesSyncCheckpointStore(get()) }
 
         single<NotesRepository> { NotesRepositoryImpl(get(), get(), get()) }
-        single<NoteFolderRepository> { NoteFolderRepositoryImpl(get(), get()) }
+        single<NoteFolderRepository> { NoteFolderRepositoryImpl(get(), get(), get(), get()) }
         single<AuthRepository> { AuthRepositoryImpl(get()) }
 
         worker { SyncWorker(get(), get(), get(), get(), get()) }

@@ -40,6 +40,16 @@ interface NoteDao {
         timestamp: Long = System.currentTimeMillis(),
     )
 
+    @Query(
+        "UPDATE notes SET isDeleted = 1, isSynced = 0, updatedAt = :timestamp " +
+            "WHERE folderId = :folderId AND userId = :userId AND isDeleted = 0",
+    )
+    suspend fun softDeleteByFolderId(
+        folderId: String,
+        userId: String,
+        timestamp: Long = System.currentTimeMillis(),
+    )
+
     @Query("DELETE FROM notes WHERE id = :id AND userId = :userId")
     suspend fun hardDeleteById(
         id: String,

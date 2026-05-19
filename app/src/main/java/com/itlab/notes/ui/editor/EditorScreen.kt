@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -99,6 +100,7 @@ import com.itlab.domain.usecase.noteusecase.ValidateDuplicateNoteTitleUseCase
 import com.itlab.notes.media.ImageRegionLuminance
 import com.itlab.notes.media.NoteMediaImport
 import com.itlab.notes.media.imageAttachments
+import com.itlab.notes.media.isMediaLoadPending
 import com.itlab.notes.media.toCoilModel
 import com.itlab.notes.ui.EditorCloudSyncStatus
 import com.itlab.notes.ui.asDomainFolderId
@@ -139,6 +141,7 @@ fun editorScreen(
     directoryId: String,
     note: NoteItemUi,
     cloudSyncStatus: EditorCloudSyncStatus = EditorCloudSyncStatus.Idle,
+    isCloudDownloadActive: Boolean = false,
     onBack: (NoteItemUi) -> Unit,
     onPersist: (NoteItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
@@ -246,6 +249,7 @@ fun editorScreen(
                 titleHasDuplicate = titleHasDuplicate,
                 content = editorVm.content,
                 attachments = editorVm.attachments,
+                isCloudDownloadActive = isCloudDownloadActive,
                 aiSummary = if (EDITOR_AI_UI_PREVIEW) EDITOR_AI_PREVIEW_SUMMARY else null,
                 onTitleChange = editorVm::onTitleChange,
                 onContentChange = editorVm::onContentChange,
@@ -280,6 +284,7 @@ fun editorScreen(
         editorFullScreenAttachmentsViewer(
             images = viewer.images,
             initialIndex = viewer.initialIndex,
+            isCloudDownloadActive = isCloudDownloadActive,
             onDismiss = { attachmentsViewer = null },
         )
     }
@@ -366,6 +371,7 @@ private fun editorContent(
     titleHasDuplicate: Boolean,
     content: String,
     attachments: List<ContentItem>,
+    isCloudDownloadActive: Boolean,
     aiSummary: String?,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
@@ -404,6 +410,7 @@ private fun editorContent(
         if (attachments.isNotEmpty()) {
             editorAttachmentsRow(
                 attachments = attachments,
+                isCloudDownloadActive = isCloudDownloadActive,
                 onAttachmentClick = onAttachmentClick,
                 onRemove = onRemoveAttachment,
                 modifier = Modifier.padding(top = 12.dp),
@@ -417,6 +424,7 @@ private fun editorContent(
 @Composable
 private fun editorAttachmentsRow(
     attachments: List<ContentItem>,
+    isCloudDownloadActive: Boolean,
     onAttachmentClick: (ContentItem) -> Unit,
     onRemove: (ContentItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -431,7 +439,13 @@ private fun editorAttachmentsRow(
             key = { it.id },
         ) { item ->
             when (item) {
-                is ContentItem.Image -> editorImageThumbnail(item, onAttachmentClick, onRemove)
+                is ContentItem.Image ->
+                    editorImageThumbnail(
+                        image = item,
+                        isCloudDownloadActive = isCloudDownloadActive,
+                        onAttachmentClick = onAttachmentClick,
+                        onRemove = onRemove,
+                    )
                 is ContentItem.File ->
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -503,15 +517,14 @@ private fun editorAttachmentsRow(
 @Composable
 private fun editorImageThumbnail(
     image: ContentItem.Image,
+    isCloudDownloadActive: Boolean,
     onAttachmentClick: (ContentItem) -> Unit,
     onRemove: (ContentItem) -> Unit,
 ) {
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
-    val model =
-        remember(image.id, image.source.localPath, image.source.remoteUrl) {
-            image.toCoilModel(context)
-        }
+    val model = image.toCoilModel(context)
+    val showLoading = image.isMediaLoadPending(context, isCloudDownloadActive)
     var closeIconTint by remember(image.id) { mutableStateOf(Color.White) }
     Box {
         Surface(
@@ -545,16 +558,10 @@ private fun editorImageThumbnail(
                     onError = { closeIconTint = colors.onSurfaceVariant },
                 )
             } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.BrokenImage,
-                        contentDescription = null,
-                        tint = colors.onSurfaceVariant,
-                    )
-                }
+                editorImagePlaceholder(
+                    showLoading = showLoading,
+                    colors = colors,
+                )
             }
         }
         IconButton(
@@ -573,11 +580,37 @@ private fun editorImageThumbnail(
     }
 }
 
+@Composable
+private fun editorImagePlaceholder(
+    showLoading: Boolean,
+    colors: ColorScheme,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (showLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(28.dp),
+                strokeWidth = 2.dp,
+                color = colors.primary,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Rounded.BrokenImage,
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun editorFullScreenAttachmentsViewer(
     images: List<ContentItem.Image>,
     initialIndex: Int,
+    isCloudDownloadActive: Boolean,
     onDismiss: () -> Unit,
 ) {
     if (images.isEmpty()) return
@@ -619,10 +652,8 @@ private fun editorFullScreenAttachmentsViewer(
                         .padding(horizontal = 8.dp, vertical = 48.dp),
             ) { page ->
                 val item = images[page]
-                val model =
-                    remember(item.id, item.source.localPath, item.source.remoteUrl) {
-                        item.toCoilModel(context)
-                    }
+                val model = item.toCoilModel(context)
+                val showLoading = item.isMediaLoadPending(context, isCloudDownloadActive)
                 BoxWithConstraints(
                     modifier =
                         Modifier
@@ -656,11 +687,9 @@ private fun editorFullScreenAttachmentsViewer(
                                     ),
                         )
                     } else {
-                        Icon(
-                            imageVector = Icons.Rounded.BrokenImage,
-                            contentDescription = null,
-                            tint = colors.onSurfaceVariant,
-                            modifier = Modifier.size(48.dp),
+                        editorImagePlaceholder(
+                            showLoading = showLoading,
+                            colors = colors,
                         )
                     }
                 }

@@ -257,11 +257,13 @@ class NotesViewModel(
         val normalizedQuery = searchQuery.trim()
         return if (normalizedQuery.isBlank()) {
             when (directory.id) {
-                ALL_DIRECTORY_ID -> useCases.observeNotesUseCase()
-                FAVORITES_DIRECTORY_ID -> useCases.getAllFavoritesUseCase()
+                ALL_DIRECTORY_ID ->
+                    useCases.observeNotesUseCase().map { notesInActiveFolders(it) }
+                FAVORITES_DIRECTORY_ID ->
+                    useCases.getAllFavoritesUseCase().map { notesInActiveFolders(it) }
                 RECENT_DIRECTORY_ID ->
                     useCases.observeNotesUseCase().map { notes ->
-                        notes.sortedByDescending { it.updatedAt }
+                        notesInActiveFolders(notes).sortedByDescending { it.updatedAt }
                     }
                 else -> useCases.observeNotesByFolderUseCase(directory.id)
             }
@@ -273,13 +275,25 @@ class NotesViewModel(
                 )
             when (directory.id) {
                 FAVORITES_DIRECTORY_ID ->
-                    searchFlow.map { notes -> notes.filter { it.isFavorite } }
+                    searchFlow.map { notes ->
+                        notesInActiveFolders(notes).filter { it.isFavorite }
+                    }
+                ALL_DIRECTORY_ID -> searchFlow.map { notesInActiveFolders(it) }
                 RECENT_DIRECTORY_ID ->
                     searchFlow.map { notes ->
-                        notes.sortedByDescending { it.updatedAt }
+                        notesInActiveFolders(notes).sortedByDescending { it.updatedAt }
                     }
                 else -> searchFlow
             }
+        }
+    }
+
+    /** Notes whose folder was deleted stay in DB until sync; hide them from All/Recent. */
+    private fun notesInActiveFolders(notes: List<Note>): List<Note> {
+        val activeFolderIds = latestFolders.map { it.id }.toSet()
+        return notes.filter { note ->
+            val folderId = note.folderId ?: return@filter true
+            folderId in activeFolderIds
         }
     }
 
@@ -543,10 +557,11 @@ class NotesViewModel(
     }
 
     private fun recomputeDirectories() {
-        val countsByFolderId = latestNotes.groupingBy { it.folderId }.eachCount()
-        val allNotesCount = latestNotes.size
+        val activeNotes = notesInActiveFolders(latestNotes)
+        val countsByFolderId = activeNotes.groupingBy { it.folderId }.eachCount()
+        val allNotesCount = activeNotes.size
 
-        val favoritesCount = latestNotes.count { it.isFavorite }
+        val favoritesCount = activeNotes.count { it.isFavorite }
         val allNotesDir = DirectoryItemUi(id = ALL_DIRECTORY_ID, name = "All Notes", noteCount = allNotesCount)
         val favoritesDir =
             DirectoryItemUi(

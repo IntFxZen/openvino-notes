@@ -40,3 +40,15 @@ fun ContentItem.File.toCoilModel(context: Context): Any? {
     syncedMediaFile(context, id)?.let { return it }
     return null
 }
+
+/** True when the image is referenced but the local file is not ready yet (e.g. during cloud pull). */
+fun ContentItem.Image.isMediaLoadPending(
+    context: Context,
+    cloudSyncInProgress: Boolean,
+): Boolean {
+    if (toCoilModel(context) != null) return false
+    if (cloudSyncInProgress) return true
+    if (!source.localPath.isNullOrBlank()) return true
+    if (!source.remoteUrl.isNullOrBlank()) return true
+    return false
+}
