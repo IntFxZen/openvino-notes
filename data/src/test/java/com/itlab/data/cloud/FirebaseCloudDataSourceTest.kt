@@ -25,9 +25,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.File
 import java.io.IOException
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class FirebaseCloudDataSourceTest {
     @MockK
     lateinit var storage: FirebaseStorage
@@ -160,12 +165,13 @@ class FirebaseCloudDataSourceTest {
     @Test
     fun `uploadMedia success`() {
         runBlocking {
-            val file = File.createTempFile("test", "tmp")
+            val file = File.createTempFile("test", ".jpg")
+            file.writeBytes(byteArrayOf(1, 2, 3))
             val task = mockk<UploadTask>()
             val mimeType = "image/jpeg"
 
             every { rootRef.child(any()) } returns childRef
-            every { childRef.putStream(any(), any()) } returns task
+            every { childRef.putFile(any<android.net.Uri>(), any()) } returns task
             coEvery { task.await() } returns mockk()
 
             val result =
