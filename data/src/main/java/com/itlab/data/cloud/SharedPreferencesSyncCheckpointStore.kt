@@ -1,6 +1,7 @@
 package com.itlab.data.cloud
 
 import android.content.Context
+import androidx.core.content.edit
 import com.itlab.domain.cloud.SyncCheckpointStore
 
 class SharedPreferencesSyncCheckpointStore(
@@ -15,13 +16,17 @@ class SharedPreferencesSyncCheckpointStore(
     override suspend fun markInitialFullSyncCompleted(userId: String) {
         val current = prefs.getStringSet(KEY_COMPLETED_USER_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
         current.add(userId)
-        prefs.edit().putStringSet(KEY_COMPLETED_USER_IDS, current).apply()
+        prefs.edit {
+            putStringSet(KEY_COMPLETED_USER_IDS, current)
+        }
     }
 
     override suspend fun clearUser(userId: String) {
         val current = prefs.getStringSet(KEY_COMPLETED_USER_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
         current.remove(userId)
-        prefs.edit().putStringSet(KEY_COMPLETED_USER_IDS, current).apply()
+        prefs.edit {
+            putStringSet(KEY_COMPLETED_USER_IDS, current)
+        }
     }
 
     private companion object {
